@@ -3,7 +3,7 @@ const axios = require('axios');
 const { TwitterApi } = require('twitter-api-v2');
 
 // Configure APIs
-const newsApiUrl = `https://newsapi.org/v2/top-headlines?country=in&apiKey=${process.env.NEWS_API_KEY}`;
+const newsApiUrl = `https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=${process.env.NEWS_API_KEY}`;
 const xClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
   appSecret: process.env.X_API_SECRET,
