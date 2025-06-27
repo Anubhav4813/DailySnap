@@ -35,15 +35,42 @@ async function fetchLatestNews() {
   }
 }
 
-function formatTweet(article) {
-  const maxTitleLength = 256 - 24; // 280 chars - 23 (URL) - 1 (space)
-  let title = article.title.trim();
 
+// Summarize the article (up to ~280 chars from description/content)
+function summarizeArticle(article) {
+  let text = '';
+  if (article.description) {
+    text = article.description;
+  } else if (article.content) {
+    text = article.content;
+  } else {
+    text = '';
+  }
+  // Trim to 280 chars, avoid cutting mid-word
+  if (text.length > 280) {
+    let trimmed = text.slice(0, 280);
+    const lastSpace = trimmed.lastIndexOf(' ');
+    if (lastSpace > 0) trimmed = trimmed.slice(0, lastSpace);
+    return trimmed.trim() + '...';
+  }
+  return text.trim();
+}
+
+function formatTweet(article, summary) {
+  // Reserve space for URL and summary
+  const maxTweetLength = 280;
+  const urlLength = 23; // Twitter/X shortens URLs to 23 chars
+  const spaceForSummary = summary ? summary.length + 2 : 0; // 2 for dash and space
+  const maxTitleLength = maxTweetLength - urlLength - 1 - spaceForSummary;
+  let title = article.title.trim();
   if (title.length > maxTitleLength) {
     title = title.substring(0, maxTitleLength - 3) + '...';
   }
-
-  return `${title} ${article.url}`;
+  if (summary) {
+    return `${title} - ${summary} ${article.url}`;
+  } else {
+    return `${title} ${article.url}`;
+  }
 }
 
 async function postToX(tweetText) {
@@ -57,10 +84,12 @@ async function postToX(tweetText) {
   }
 }
 
+
 (async () => {
   try {
     const article = await fetchLatestNews();
-    const tweet = formatTweet(article);
+    const summary = summarizeArticle(article);
+    const tweet = formatTweet(article, summary);
     await postToX(tweet);
   } catch (error) {
     console.error('App error:', error.message);
