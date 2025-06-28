@@ -1,7 +1,12 @@
 {
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@mozilla/readability": "^0.6.0",
     "axios": "^1.9.0",
+    "cheerio": "^1.1.0",
     "dotenv": "^16.5.0",
+    "jsdom": "^26.1.0",
+    "rss-parser": "^3.13.0",
     "twitter-api-v2": "^1.23.2"
   }
 }
