@@ -1,4 +1,3 @@
-// test script
 require('dotenv').config();
 const Parser = require('rss-parser');
 const axios = require('axios');
@@ -10,6 +9,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 const MIN_SUMMARY_LENGTH = 240;
 const MAX_SUMMARY_LENGTH = 280;
+const MAX_RETRIES = 3;
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -96,24 +96,33 @@ function extractImageFromItem(item) {
 }
 
 async function postTweet(text, imageUrl) {
-  try {
-    let mediaId = null;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      let mediaId = null;
 
-    if (imageUrl) {
-      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const imageBuffer = Buffer.from(response.data, 'binary');
-      mediaId = await rwClient.v1.uploadMedia(imageBuffer, { mimeType: 'image/jpeg' });
+      if (imageUrl) {
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const imageBuffer = Buffer.from(response.data, 'binary');
+        mediaId = await rwClient.v1.uploadMedia(imageBuffer, { mimeType: 'image/jpeg' });
+      }
+
+      const { data } = await rwClient.v2.tweet({
+        text,
+        media: mediaId ? { media_ids: [mediaId] } : undefined,
+      });
+
+      console.log(`✅ Tweet posted: https://twitter.com/user/status/${data.id}`);
+      return true; // Success
+    } catch (error) {
+      console.error(`❌ Failed to post tweet (Attempt ${attempt}):`, error.message);
+      if (attempt < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3s before retry
+      }
     }
-
-    const { data } = await rwClient.v2.tweet({
-      text,
-      media: mediaId ? { media_ids: [mediaId] } : undefined,
-    });
-
-    console.log(`✅ Tweet posted: https://twitter.com/user/status/${data.id}`);
-  } catch (error) {
-    console.error("❌ Failed to post tweet:", error.message);
   }
+
+  console.error("❌ All tweet attempts failed.");
+  return false;
 }
 
 async function processOneTweet() {
@@ -153,7 +162,10 @@ async function processOneTweet() {
       console.log(tweet);
       console.log(`Length: ${tweet.length}/280`);
 
-      await postTweet(tweet, imageUrl);
+      const success = await postTweet(tweet, imageUrl);
+      if (!success) {
+        console.log("❌ Tweeting failed after retries.");
+      }
     } else {
       console.log("⚠️ Article too short for summarization.");
     }
@@ -166,5 +178,5 @@ async function processOneTweet() {
 (async () => {
   console.log("🚀 Starting scheduled summarizer...");
   await processOneTweet();
-  console.log("✅ Done (1 tweet posted)");
+  console.log("✅ Done");
 })();
