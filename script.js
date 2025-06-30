@@ -2,7 +2,6 @@ require('dotenv').config();
 const Parser = require('rss-parser');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fs = require('fs');
 const { TwitterApi } = require('twitter-api-v2');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -112,11 +111,11 @@ async function postTweet(text, imageUrl) {
       });
 
       console.log(`✅ Tweet posted: https://twitter.com/user/status/${data.id}`);
-      return true; // Success
+      return true;
     } catch (error) {
       console.error(`❌ Failed to post tweet (Attempt ${attempt}):`, error.message);
       if (attempt < MAX_RETRIES) {
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3s before retry
+        await new Promise(resolve => setTimeout(resolve, 3000)); // wait 3 seconds
       }
     }
   }
@@ -136,7 +135,7 @@ async function processOneTweet() {
 
     if (allArticles.length === 0) {
       console.log("⚠️ No articles found.");
-      return;
+      return false;
     }
 
     const item = allArticles[Math.floor(Math.random() * allArticles.length)];
@@ -152,7 +151,7 @@ async function processOneTweet() {
       const summary = await generateStrictLengthSummary(content);
       if (!summary) {
         console.log("⚠️ Summary generation failed.");
-        return;
+        return false;
       }
 
       const tweet = summary;
@@ -165,18 +164,37 @@ async function processOneTweet() {
       const success = await postTweet(tweet, imageUrl);
       if (!success) {
         console.log("❌ Tweeting failed after retries.");
+        return false;
       }
+
+      return true;
     } else {
       console.log("⚠️ Article too short for summarization.");
+      return false;
     }
 
   } catch (err) {
     console.error("❌ Error:", err.message);
+    return false;
   }
+}
+
+async function processUntilTweetPosted(maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`\n🌀 Overall Attempt ${attempt} to post tweet...`);
+    const success = await processOneTweet();
+    if (success) return;
+    if (attempt < maxAttempts) {
+      console.log("🔁 Retrying in 5 seconds...");
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+
+  console.log("❌ All attempts to post tweet failed.");
 }
 
 (async () => {
   console.log("🚀 Starting scheduled summarizer...");
-  await processOneTweet();
-  console.log("✅ Done");
+  await processUntilTweetPosted(3);
+  console.log("🏁 Finished");
 })();
