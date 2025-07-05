@@ -39,7 +39,7 @@ jobs:
 
       - name: Display posted links summary
         run: |
-          echo "## 📰 News Bot Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 📰 News Assistant Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f "posted_links.json" ]; then
@@ -70,9 +70,9 @@ jobs:
           git config --local user.name "GitHub Action"
           
           # Update README with latest posted links
-          echo "# DailySnap - Automated News Bot" > README_temp.md
+          echo "# DailySnap - Automated News Assistant" > README_temp.md
           echo "" >> README_temp.md
-          echo "This bot automatically posts news updates to X (Twitter) every 2 hours." >> README_temp.md
+          echo "This assistant automatically posts news updates to X (Twitter) every 2 hours." >> README_temp.md
           echo "" >> README_temp.md
           echo "## Recent Posted Articles" >> README_temp.md
           echo "" >> README_temp.md
