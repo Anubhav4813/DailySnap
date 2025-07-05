@@ -19,8 +19,6 @@ const twitterClient = new TwitterApi({
 const rwClient = twitterClient.readWrite;
 
 const rssFeeds = [
-  "https://www.hindustantimes.com/feeds/rss/latest/rssfeed.xml",
-  "https://feeds.feedburner.com/ndtvnews-top-stories",
   "https://indianexpress.com/section/india/feed/",
   "https://www.thehindu.com/news/national/feeder/default.rss"
 ];
@@ -129,8 +127,16 @@ async function processOneTweet() {
     let allArticles = [];
 
     for (const feedUrl of rssFeeds) {
-      const feed = await parser.parseURL(feedUrl);
-      allArticles.push(...feed.items.slice(0, 3));
+      try {
+        const response = await axios.get(feedUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          timeout: 10000
+        });
+        const feed = await parser.parseString(response.data);
+        allArticles.push(...feed.items.slice(0, 3));
+      } catch (err) {
+        console.error(`❌ Failed to fetch or parse feed: ${feedUrl} - ${err.message}`);
+      }
     }
 
     if (allArticles.length === 0) {

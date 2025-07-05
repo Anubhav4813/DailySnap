@@ -28,7 +28,6 @@ jobs:
           max_attempts: 3
           command: node index.js
         env:
-          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
