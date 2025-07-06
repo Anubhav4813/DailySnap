@@ -65,8 +65,8 @@ jobs:
 
       - name: Commit and push posted links
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "anubhavgahlawatcool01@gmail.com"
+          git config --local user.name "Anubhav4813"
           
           # Update README with latest posted links
           echo "# DailySnap - Automated News Assistant" > README_temp.md
