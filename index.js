@@ -9,7 +9,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 const MIN_SUMMARY_LENGTH = 240;
 const MAX_SUMMARY_LENGTH = 280;
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 1;
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -527,11 +527,11 @@ async function processOneTweet() {
 }
 
 async function processUntilTweetPosted(maxAttempts = 3) {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     console.log(`\n🌀 Overall Attempt ${attempt} to post tweet...`);
     const success = await processOneTweet();
     if (success) return;
-    if (attempt < maxAttempts) {
+    if (attempt < 3) {
       console.log("🔁 Retrying in 5 seconds...");
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
