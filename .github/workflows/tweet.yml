@@ -55,8 +55,7 @@ jobs:
                 const links = JSON.parse(fs.readFileSync('posted_links.json', 'utf-8'));
                 const recent = links.slice(-5).reverse();
                 recent.forEach((link, i) => {
-                  const title = link.split('/').pop().replace(/-/g, ' ').replace(/\d+\/$/, '');
-                  console.log(\`\${i + 1}. [\${title}](\${link})\`);
+                  console.log(\`\${i + 1}. \${link}\`);
                 });
               }
             " >> $GITHUB_STEP_SUMMARY
@@ -87,7 +86,7 @@ jobs:
                 const links = JSON.parse(fs.readFileSync('posted_links.json', 'utf-8'));
                 const recent = links.slice(-10).reverse();
                 recent.forEach((link, i) => {
-                  console.log(\`\${i + 1}. [\${link.split('/').pop().replace(/-/g, ' ')}](\${link})\`);
+                  console.log(\`\${i + 1}. \${link}\`);
                 });
               }
             " >> README_temp.md
