@@ -471,13 +471,7 @@ async function processOneTweet() {
       const { item, score, media } = scoredArticles[i];
       const mediaInfo = media ? `${media.type}` : 'text-only';
       console.log(`[DEBUG] ${i + 1}. Score: ${score} | Media: ${mediaInfo} | "${item.title.substring(0, 60)}..."`);
-    }
-
-    // Try each article in order of priority
-    let fallbackArticle = null;
-    let fallbackSummary = null;
-    let fallbackLink = null;
-
+    // Try each article in order of priority, only tweet if Gemini summary is available
     for (let i = 0; i < Math.min(scoredArticles.length, 5); i++) {
       const { item, score, media } = scoredArticles[i];
       const link = item.link || item.guid;
@@ -494,31 +488,15 @@ async function processOneTweet() {
       if (!content || content.length < 300) continue;
 
       let summary = null;
-      // Try Gemini summary for videos (highest priority), top 3 articles, or articles with media
-      if ((media && media.type === 'video') || i < 3 || media) {
-        try {
-          console.log(`[DEBUG] Generating Gemini summary for article ${i + 1} (score: ${score}, media: ${media ? media.type : 'none'})`);
-          summary = await generateStrictLengthSummary(content);
-        } catch (err) {
-          console.error(`[ERROR] Failed to generate summary: ${err.message}`);
-          // Fallback to simple summary
-          summary = content.replace(/\s+/g, ' ').trim().substring(0, 277);
-          if (summary.length > 277) summary = summary.substring(0, 277) + '...';
-        }
-      } else {
-        // Fallback: use first 260-280 chars of content
-        summary = content.replace(/\s+/g, ' ').trim().substring(0, 277);
-        if (summary.length > 277) summary = summary.substring(0, 277) + '...';
+      try {
+        console.log(`[DEBUG] Generating Gemini summary for article ${i + 1} (score: ${score}, media: ${media ? media.type : 'none'})`);
+        summary = await generateStrictLengthSummary(content);
+      } catch (err) {
+        console.error(`[ERROR] Failed to generate summary: ${err.message}`);
+        continue; // Skip this article if Gemini summary fails
       }
 
       if (!summary) continue;
-
-      // Save the first eligible article as fallback
-      if (!fallbackArticle) {
-        fallbackArticle = item;
-        fallbackSummary = summary;
-        fallbackLink = link;
-      }
 
       // Post the news
       console.log(`\n📌 Posting article (score: ${score}): ${item.title}`);
@@ -536,17 +514,10 @@ async function processOneTweet() {
       }
     }
 
-    // Fallback to highest-priority article as text-only
-    if (fallbackArticle && fallbackSummary && fallbackLink) {
-      console.log("⚠️ Posting highest-priority article as text-only fallback.");
-      const success = await postTweet(fallbackSummary, null);
-      if (success) {
-        postedLinks.add(fallbackLink);
-        savePostedLinks();
-        return true;
-      }
-    }
-
+    console.log("⚠️ No suitable article found for tweeting.");
+    return false;
+  // ...existing code...
+}
     console.log("⚠️ No suitable article found for tweeting.");
     return false;
   } catch (err) {
