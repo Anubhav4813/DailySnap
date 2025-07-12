@@ -20,8 +20,35 @@ const twitterClient = new TwitterApi({
 const rwClient = twitterClient.readWrite;
 
 const rssFeeds = [
+  // Normal news
   "https://www.thehindu.com/news/national/feeder/default.rss",
-  "https://indianexpress.com/section/india/feed/"
+  "https://indianexpress.com/section/india/feed/",
+  "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+  "https://feeds.feedburner.com/ndtvnews-india-news",
+  // Business news
+  "https://economictimes.indiatimes.com/rssfeeds/1977021501.cms",
+  "https://www.livemint.com/rss/markets",
+  // Technology news
+  "https://techcrunch.com/feed/",
+  "https://www.theverge.com/rss/index.xml",
+  "https://www.gadgets360.com/rss/news",
+  "https://github.blog/feed/",
+  "https://www.thehindu.com/sci-tech/technology/feeder/default.rss",
+  "https://indianexpress.com/section/technology/feed/",
+  // Science and tech
+  "https://www.thehindu.com/sci-tech/feeder/default.rss",
+  "https://www.indiatoday.in/rss/1206614",
+  "https://timesofindia.indiatimes.com/rssfeeds/3908999.cms",
+  // Sports news
+  "https://www.thehindu.com/sport/feeder/default.rss",
+  "https://www.espncricinfo.com/rss/content/story/feeds/6.xml",
+  // Bollywood
+  "https://www.bollywoodhungama.com/rss/news.xml",
+  // Environment
+  "https://www.thehindu.com/sci-tech/energy-and-environment/feeder/default.rss",
+  // Opinion
+  "https://indianexpress.com/section/opinion/feed/",
+  "https://www.thehindu.com/opinion/feeder/default.rss"
 ];
 
 const parser = new Parser({
@@ -496,7 +523,7 @@ async function processOneTweet() {
     
     // Show top 3 articles with their scores for debugging
     console.log(`[DEBUG] Top articles by priority:`);
-    for (let i = 0; i < Math.min(3, scoredArticles.length); i++) {
+    for (let i = 0; i < Math.min(5, scoredArticles.length); i++) {
       const { item, score, media } = scoredArticles[i];
       const mediaInfo = media ? `${media.type}` : 'text-only';
       console.log(`[DEBUG] ${i + 1}. Score: ${score} | Media: ${mediaInfo} | "${item.title.substring(0, 60)}..."`);
