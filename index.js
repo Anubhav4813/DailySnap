@@ -139,18 +139,33 @@ function extractMediaFromItem(item) {
       }
     }
 
+
     // Parse HTML content for images/videos
     const contentToSearch = item['content:encoded'] || item.content || item.description || '';
     if (contentToSearch) {
       // Look for video tags
-      const videoMatch = contentToSearch.match(/<video[^>]+src\s*=\s*['"](.*?)['"][^>]*>/i);
+      const videoMatch = contentToSearch.match(/<video[^>]+src\s*=\s*['\"](.*?)['\"][^>]*>/i);
       if (videoMatch) {
         console.log(`[DEBUG] Found video in content: ${videoMatch[1]}`);
         return { type: 'video', url: videoMatch[1] };
       }
 
+      // Look for source tags inside video (for feeds that use <source src=...>)
+      const sourceMatch = contentToSearch.match(/<source[^>]+src\s*=\s*['\"](.*?)['\"][^>]*>/i);
+      if (sourceMatch) {
+        console.log(`[DEBUG] Found video source in content: ${sourceMatch[1]}`);
+        return { type: 'video', url: sourceMatch[1] };
+      }
+
+      // Look for direct video links (e.g., .mp4, .webm) in the text
+      const directVideoMatch = contentToSearch.match(/https?:\/\/[\w\-./%?=&]+\.(mp4|webm|mov|avi)/i);
+      if (directVideoMatch) {
+        console.log(`[DEBUG] Found direct video link in content: ${directVideoMatch[0]}`);
+        return { type: 'video', url: directVideoMatch[0] };
+      }
+
       // Look for img tags
-      const imgMatch = contentToSearch.match(/<img[^>]+src\s*=\s*['"](.*?)['"][^>]*>/i);
+      const imgMatch = contentToSearch.match(/<img[^>]+src\s*=\s*['\"](.*?)['\"][^>]*>/i);
       if (imgMatch) {
         console.log(`[DEBUG] Found image in content: ${imgMatch[1]}`);
         return { type: 'image', url: imgMatch[1] };
