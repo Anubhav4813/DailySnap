@@ -5,6 +5,16 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const { TwitterApi } = require('twitter-api-v2');
 
+// Debug helper function
+function debugLog(message, data = null) {
+  if (process.env.NODE_ENV === 'development' || process.argv.includes('--debug')) {
+    console.log(`[DEBUG] ${message}`);
+    if (data) {
+      console.log('[DEBUG] Data:', JSON.stringify(data, null, 2));
+    }
+  }
+}
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 const MIN_SUMMARY_LENGTH = 240;
@@ -415,18 +425,24 @@ function savePostedLinks() {
 
 async function processOneTweet() {
   try {
+    debugLog('Starting processOneTweet function');
+    debugger; // Breakpoint 1: Function start
+    
     let allArticles = [];
 
     // Fetch and collect articles from all feeds
+    debugLog(`Processing ${rssFeeds.length} RSS feeds`);
     for (const feedUrl of rssFeeds) {
       try {
-        console.log(`[DEBUG] Fetching feed: ${feedUrl}`);
+        debugLog(`Fetching feed: ${feedUrl}`);
+        debugger; // Breakpoint 2: Before each feed fetch
+        
         const response = await axios.get(feedUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0' },
           timeout: 10000
         });
         const feed = await parser.parseString(response.data);
-        console.log(`[DEBUG] Found ${feed.items.length} items in feed`);
+        debugLog(`Found ${feed.items.length} items in feed: ${feedUrl}`);
         allArticles.push(...feed.items.slice(0, 5));
       } catch (err) {
         console.error(`❌ Failed to fetch or parse feed: ${feedUrl} - ${err.message}`);
@@ -434,15 +450,20 @@ async function processOneTweet() {
     }
 
     if (allArticles.length === 0) {
+      debugLog("No articles found, returning false");
       console.log("⚠️ No articles found.");
       return false;
     }
 
-    console.log(`[DEBUG] Total articles collected: ${allArticles.length}`);
+    debugLog(`Total articles collected: ${allArticles.length}`);
+    debugger; // Breakpoint 3: Before article scoring
 
     // Score all articles for general news, sort by score descending
     let scoredArticles = [];
     for (const item of allArticles) {
+      debugLog(`Processing article: ${item.title}`);
+      debugger; // Breakpoint 4: Before processing each article
+      
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
         content = await extractArticleContent(item.link);
@@ -452,6 +473,8 @@ async function processOneTweet() {
       // Extract and validate media
       const rawMedia = extractMediaFromItem(item);
       const media = rawMedia ? validateMediaUrl(rawMedia.url) : null;
+
+      debugLog(`Media extraction result for "${item.title}":`, { rawMedia, media });
 
       if (media) {
         console.log(`[DEBUG] Valid media found for "${item.title}": ${media.type} - ${media.url}`);
@@ -527,6 +550,8 @@ async function processOneTweet() {
       const { item, score, media } = scoredArticles[i];
       const mediaInfo = media ? `${media.type}` : 'text-only';
       console.log(`[DEBUG] ${i + 1}. Score: ${score} | Media: ${mediaInfo} | "${item.title.substring(0, 60)}..."`);
+    }
+
     // Try each article in order of priority, only tweet if Gemini summary is available
     for (let i = 0; i < Math.min(scoredArticles.length, 5); i++) {
       const { item, score, media } = scoredArticles[i];
@@ -570,10 +595,6 @@ async function processOneTweet() {
       }
     }
 
-    console.log("⚠️ No suitable article found for tweeting.");
-    return false;
-  // ...existing code...
-}
     console.log("⚠️ No suitable article found for tweeting.");
     return false;
   } catch (err) {
