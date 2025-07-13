@@ -4,15 +4,15 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Sat Jul 12 06:31:35 UTC 2025
+Last updated: Sun Jul 13 10:24:21 UTC 2025
 
-1. https://www.thehindu.com/news/national/tamil-nadu/tamil-nadus-gingee-fort-inscribed-as-unesco-world-heritage-site/article69803281.ece
-2. https://www.thehindu.com/news/national/andhra-pradesh/mangalagiri-handloom-sarees-and-fabrics-woven-in-tradition-draped-in-legacy/article69790758.ece
-3. https://www.thehindu.com/news/the-hindu-morning-digest-july-12-2025/article69803030.ece
-4. https://www.thehindu.com/news/national/tamil-nadu/people-will-put-an-end-to-dynasty-rule-of-dmk-in-2026-elections-edappadi-k-palaniswami/article69800986.ece
-5. https://indianexpress.com/article/india/bangladeshi-woman-indian-boyfriend-arrested-in-tripura-10120967/
-6. https://www.thehindu.com/news/national/bjp-should-apologise-to-people-for-appointing-vemula-suicide-accused-as-its-telangana-chief-congress/article69800799.ece
-7. https://indianexpress.com/article/india/tribal-couple-tied-to-yoke-forced-to-till-land-marrying-secretly-odisha-10120704/
-8. https://indianexpress.com/article/india/extreme-weather-study-indian-data-centres-10120218/
-9. https://indianexpress.com/article/india/odisha-rally-rahul-gandhi-adani-jagannath-yatra-raths-were-stopped-for-him-10120462/
-10. https://www.thehindu.com/news/national/tamil-nadu/file-written-response-to-aiadmks-plea-on-early-decision-in-two-leaves-symbol-row-madras-high-court-directs-eci/article69799544.ece
+1. https://timesofindia.indiatimes.com/world/middle-east/nasrallah-style-operation-israel-plotted-to-kill-irans-president-pezeshkian-report-claims-secret-plan/articleshow/122416850.cms
+2. https://www.livemint.com/market/stock-market-news/pc-jeweller-vs-senco-gold-vs-kalyan-jewellers-which-stock-to-buy-ahead-of-q1-results-2025-11752390061552.html
+3. https://www.livemint.com/market/stock-market-news/stocks-to-buy-or-sell-dharmesh-shah-of-icici-sec-suggests-buying-pfc-shares-tomorrow-14-july-2025-11752311199573.html
+4. https://timesofindia.indiatimes.com/world/us/us-customs-duties-top-100bn-for-first-time-in-a-financial-year/articleshow/122414436.cms
+5. https://www.livemint.com/market/stock-market-news/xis-price-war-campaign-creates-a-buzz-in-china-s-stock-market-11752367260299.html
+6. https://www.livemint.com/market/stock-market-news/adani-energy-to-varun-beverages-jay-thakkar-suggests-three-stocks-to-buy-for-short-term-in-f-o-segment-11752309846551.html
+7. https://www.livemint.com/market/stock-market-news/dividend-stocks-tcs-bharti-airtel-idfc-bank-dabur-india-others-to-trade-ex-dividend-next-week-check-full-list-11752333067312.html
+8. https://www.livemint.com/market/stock-market-news/expert-view-increased-retail-participation-may-drive-a-re-rating-in-valuations-says-green-portfolio-pms-cofounder-11752301728649.html
+9. https://www.thehindu.com/opinion/lead/new-political-contours-in-tamil-nadus-shifting-sands/article69801521.ece
+10. https://www.theverge.com/tech/705786/amazon-prime-day-best-tech-deals-still-available-2025

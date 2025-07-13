@@ -428,15 +428,14 @@ async function processOneTweet() {
     debugLog('Starting processOneTweet function');
     debugger; // Breakpoint 1: Function start
     
-    let allArticles = [];
 
+    let allArticles = [];
     // Fetch and collect articles from all feeds
     debugLog(`Processing ${rssFeeds.length} RSS feeds`);
     for (const feedUrl of rssFeeds) {
       try {
         debugLog(`Fetching feed: ${feedUrl}`);
         debugger; // Breakpoint 2: Before each feed fetch
-        
         const response = await axios.get(feedUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0' },
           timeout: 10000
@@ -449,13 +448,23 @@ async function processOneTweet() {
       }
     }
 
+    // Filter articles to only those published in the last 2 hours
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    allArticles = allArticles.filter(item => {
+      let pubDate = item.isoDate || item.pubDate || item.published || item.date;
+      if (!pubDate) return false;
+      let articleDate = new Date(pubDate);
+      return articleDate > twoHoursAgo && articleDate <= now;
+    });
+
     if (allArticles.length === 0) {
-      debugLog("No articles found, returning false");
-      console.log("⚠️ No articles found.");
+      debugLog("No articles found in the last 2 hours, returning false");
+      console.log("⚠️ No articles found in the last 2 hours.");
       return false;
     }
 
-    debugLog(`Total articles collected: ${allArticles.length}`);
+    debugLog(`Total articles collected in last 2 hours: ${allArticles.length}`);
     debugger; // Breakpoint 3: Before article scoring
 
     // Score all articles for general news, sort by score descending

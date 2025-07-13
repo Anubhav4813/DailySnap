@@ -5,11 +5,21 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const { TwitterApi } = require('twitter-api-v2');
 
+// Debug helper function
+function debugLog(message, data = null) {
+  if (process.env.NODE_ENV === 'development' || process.argv.includes('--debug')) {
+    console.log(`[DEBUG] ${message}`);
+    if (data) {
+      console.log('[DEBUG] Data:', JSON.stringify(data, null, 2));
+    }
+  }
+}
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 const MIN_SUMMARY_LENGTH = 240;
 const MAX_SUMMARY_LENGTH = 280;
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 1;
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -20,8 +30,35 @@ const twitterClient = new TwitterApi({
 const rwClient = twitterClient.readWrite;
 
 const rssFeeds = [
+  // Normal news
   "https://www.thehindu.com/news/national/feeder/default.rss",
-  "https://indianexpress.com/section/india/feed/"
+  "https://indianexpress.com/section/india/feed/",
+  "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+  "https://feeds.feedburner.com/ndtvnews-india-news",
+  // Business news
+  "https://economictimes.indiatimes.com/rssfeeds/1977021501.cms",
+  "https://www.livemint.com/rss/markets",
+  // Technology news
+  "https://techcrunch.com/feed/",
+  "https://www.theverge.com/rss/index.xml",
+  "https://www.gadgets360.com/rss/news",
+  "https://github.blog/feed/",
+  "https://www.thehindu.com/sci-tech/technology/feeder/default.rss",
+  "https://indianexpress.com/section/technology/feed/",
+  // Science and tech
+  "https://www.thehindu.com/sci-tech/feeder/default.rss",
+  "https://www.indiatoday.in/rss/1206614",
+  "https://timesofindia.indiatimes.com/rssfeeds/3908999.cms",
+  // Sports news
+  "https://www.thehindu.com/sport/feeder/default.rss",
+  "https://www.espncricinfo.com/rss/content/story/feeds/6.xml",
+  // Bollywood
+  "https://www.bollywoodhungama.com/rss/news.xml",
+  // Environment
+  "https://www.thehindu.com/sci-tech/energy-and-environment/feeder/default.rss",
+  // Opinion
+  "https://indianexpress.com/section/opinion/feed/",
+  "https://www.thehindu.com/opinion/feeder/default.rss"
 ];
 
 const parser = new Parser({
@@ -139,18 +176,33 @@ function extractMediaFromItem(item) {
       }
     }
 
+
     // Parse HTML content for images/videos
     const contentToSearch = item['content:encoded'] || item.content || item.description || '';
     if (contentToSearch) {
       // Look for video tags
-      const videoMatch = contentToSearch.match(/<video[^>]+src\s*=\s*['"](.*?)['"][^>]*>/i);
+      const videoMatch = contentToSearch.match(/<video[^>]+src\s*=\s*['\"](.*?)['\"][^>]*>/i);
       if (videoMatch) {
         console.log(`[DEBUG] Found video in content: ${videoMatch[1]}`);
         return { type: 'video', url: videoMatch[1] };
       }
 
+      // Look for source tags inside video (for feeds that use <source src=...>)
+      const sourceMatch = contentToSearch.match(/<source[^>]+src\s*=\s*['\"](.*?)['\"][^>]*>/i);
+      if (sourceMatch) {
+        console.log(`[DEBUG] Found video source in content: ${sourceMatch[1]}`);
+        return { type: 'video', url: sourceMatch[1] };
+      }
+
+      // Look for direct video links (e.g., .mp4, .webm) in the text
+      const directVideoMatch = contentToSearch.match(/https?:\/\/[\w\-./%?=&]+\.(mp4|webm|mov|avi)/i);
+      if (directVideoMatch) {
+        console.log(`[DEBUG] Found direct video link in content: ${directVideoMatch[0]}`);
+        return { type: 'video', url: directVideoMatch[0] };
+      }
+
       // Look for img tags
-      const imgMatch = contentToSearch.match(/<img[^>]+src\s*=\s*['"](.*?)['"][^>]*>/i);
+      const imgMatch = contentToSearch.match(/<img[^>]+src\s*=\s*['\"](.*?)['\"][^>]*>/i);
       if (imgMatch) {
         console.log(`[DEBUG] Found image in content: ${imgMatch[1]}`);
         return { type: 'image', url: imgMatch[1] };
@@ -373,18 +425,24 @@ function savePostedLinks() {
 
 async function processOneTweet() {
   try {
+    debugLog('Starting processOneTweet function');
+    debugger; // Breakpoint 1: Function start
+    
     let allArticles = [];
 
     // Fetch and collect articles from all feeds
+    debugLog(`Processing ${rssFeeds.length} RSS feeds`);
     for (const feedUrl of rssFeeds) {
       try {
-        console.log(`[DEBUG] Fetching feed: ${feedUrl}`);
+        debugLog(`Fetching feed: ${feedUrl}`);
+        debugger; // Breakpoint 2: Before each feed fetch
+        
         const response = await axios.get(feedUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0' },
           timeout: 10000
         });
         const feed = await parser.parseString(response.data);
-        console.log(`[DEBUG] Found ${feed.items.length} items in feed`);
+        debugLog(`Found ${feed.items.length} items in feed: ${feedUrl}`);
         allArticles.push(...feed.items.slice(0, 5));
       } catch (err) {
         console.error(`❌ Failed to fetch or parse feed: ${feedUrl} - ${err.message}`);
@@ -392,15 +450,20 @@ async function processOneTweet() {
     }
 
     if (allArticles.length === 0) {
+      debugLog("No articles found, returning false");
       console.log("⚠️ No articles found.");
       return false;
     }
 
-    console.log(`[DEBUG] Total articles collected: ${allArticles.length}`);
+    debugLog(`Total articles collected: ${allArticles.length}`);
+    debugger; // Breakpoint 3: Before article scoring
 
     // Score all articles for general news, sort by score descending
     let scoredArticles = [];
     for (const item of allArticles) {
+      debugLog(`Processing article: ${item.title}`);
+      debugger; // Breakpoint 4: Before processing each article
+      
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
         content = await extractArticleContent(item.link);
@@ -411,6 +474,8 @@ async function processOneTweet() {
       const rawMedia = extractMediaFromItem(item);
       const media = rawMedia ? validateMediaUrl(rawMedia.url) : null;
 
+      debugLog(`Media extraction result for "${item.title}":`, { rawMedia, media });
+
       if (media) {
         console.log(`[DEBUG] Valid media found for "${item.title}": ${media.type} - ${media.url}`);
       } else if (rawMedia) {
@@ -418,12 +483,26 @@ async function processOneTweet() {
       }
 
       // Score using local keyword method
+      // UPSC-relevant keywords (comprehensive)
       const keywords = [
-        "breaking", "exclusive", "alert", "major", "govt", "government", "india", "supreme court",
-        "prime minister", "parliament", "election", "crisis", "emergency", "policy", "law", "verdict",
-        "protest", "violence", "death", "attack", "arrest", "ban", "strike", "budget", "cabinet",
-        "minister", "president", "chief", "top", "big", "important", "significant", "historic",
-        "landmark", "record", "highest", "lowest", "first time", "last", "new", "update", "decision"
+        // Polity & Constitution
+        "constitution", "constitutional", "amendment", "fundamental rights", "directive principles", "dpsp", "preamble", "parliament", "president", "prime minister", "cabinet", "governor", "chief minister", "supreme court", "high court", "judiciary", "election commission", "cag", "attorney general", "niti aayog", "finance commission", "panchayat", "municipality", "federalism", "union", "state government", "central government", "legislature", "executive", "judicial review", "public interest litigation", "panchayati raj", "lok sabha", "rajya sabha", "bicameral", "unicameral", "ordinance", "bill", "act", "law", "governance", "civil services", "upsc", "ias", "ips", "ifs",
+        // Economy
+        "gdp", "inflation", "fiscal deficit", "current account deficit", "monetary policy", "repo rate", "reverse repo", "rbi", "banking", "npas", "gst", "tax", "budget", "economic survey", "niti aayog", "planning commission", "msme", "startup", "disinvestment", "privatization", "public sector", "subsidy", "poverty", "unemployment", "employment", "labour", "agriculture", "farmer", "crop", "minimum support price", "msme", "industry", "manufacturing", "service sector", "exports", "imports", "trade deficit", "balance of payments", "fdi", "fii", "stock market", "sebi", "bank", "insurance", "microfinance", "financial inclusion", "direct benefit transfer", "dbt", "aadhar", "jan dhan", "demonetisation", "black money", "income tax", "corporate tax", "customs duty", "excise duty", "public finance", "wto", "imf", "world bank", "brics", "g20",
+        // Environment & Ecology
+        "environment", "ecology", "biodiversity", "conservation", "wildlife", "forest", "climate change", "global warming", "carbon emission", "cop", "unfccc", "ipcc", "paris agreement", "ozone", "pollution", "air quality", "water conservation", "afforestation", "deforestation", "project tiger", "project elephant", "biosphere reserve", "national park", "wildlife sanctuary", "ramsar", "wetland", "mangrove", "coral reef", "ganga", "yamuna", "river", "clean energy", "renewable energy", "solar", "wind energy", "hydro power", "environmental impact assessment", "eia", "green tribunal", "ngt", "environment ministry", "moefcc",
+        // Science & Tech
+        "isro", "drdo", "space", "satellite", "mission", "mars", "moon", "chandrayaan", "gaganyaan", "nuclear", "missile", "defence", "technology", "innovation", "digital india", "artificial intelligence", "ai", "machine learning", "robotics", "biotechnology", "genome", "dna", "vaccine", "covid", "pandemic", "health", "disease", "medicine", "pharma", "research", "patent", "intellectual property", "cyber", "internet", "data protection", "privacy", "it act", "blockchain", "cryptocurrency", "fintech", "startups",
+        // International Relations
+        "united nations", "un", "security council", "imf", "world bank", "wto", "brics", "saarc", "asean", "g20", "g7", "bilateral", "multilateral", "treaty", "agreement", "summit", "foreign policy", "diplomacy", "border", "china", "pakistan", "usa", "russia", "nepal", "bangladesh", "sri lanka", "maldives", "afghanistan", "iran", "trade deal", "fta", "strategic partnership", "defence cooperation", "aid", "development assistance",
+        // Social Issues
+        "poverty", "inequality", "gender", "women", "child", "education", "literacy", "school", "university", "reservation", "caste", "tribe", "sc", "st", "obc", "minority", "disability", "health", "malnutrition", "sanitation", "swachh bharat", "ayushman bharat", "mid day meal", "beti bachao", "ujjwala", "social justice", "social welfare", "ngo", "civil society", "human rights", "child rights", "women rights", "transgender", "old age", "pension", "employment guarantee", "mgnrega", "skill india", "digital literacy", "financial inclusion", "urbanization", "slum", "housing", "pradhan mantri awas yojana", "pmay", "smart cities", "urban development", "rural development", "gram panchayat", "self help group", "shg",
+        // Government Schemes & Initiatives
+        "scheme", "yojana", "mission", "initiative", "pradhan mantri", "pm", "jan dhan", "aadhar", "ujjwala", "mudra", "startup india", "standup india", "swachh bharat", "ayushman bharat", "digital india", "make in india", "skill india", "beti bachao", "beti padhao", "pm kisan", "pmjay", "pmay", "mgnrega", "mid day meal", "rte", "right to education", "right to information", "rti", "right to food", "right to health", "insurance scheme", "crop insurance", "fasal bima", "pension scheme", "old age pension", "social security", "direct benefit transfer", "dbt", "public distribution system", "pds", "ration card", "food security", "national health mission", "nhm", "icds", "anganwadi", "tribal affairs", "minority affairs", "backward class", "sc", "st", "obc", "women empowerment", "child development", "youth affairs", "sports", "khelo india",
+        // History & Culture
+        "history", "ancient", "medieval", "modern", "freedom struggle", "independence", "gandhi", "nehru", "ambedkar", "subhash chandra bose", "bhagat singh", "reform", "renaissance", "art", "architecture", "culture", "heritage", "unesco", "festival", "dance", "music", "painting", "literature", "language", "archaeology", "monument", "temple", "mosque", "church", "buddhism", "jainism", "hinduism", "islam", "sikhism", "religion", "philosophy", "social reform", "women reformer", "tribal movement", "peasant movement", "dalit movement",
+        // Current Affairs & Misc
+        "current affairs", "important", "significant", "notable", "landmark", "record", "highest", "lowest", "first time", "last", "new", "update", "decision", "verdict", "judgment", "order", "ban", "strike", "protest", "violence", "arrest", "attack", "death", "disaster", "flood", "drought", "earthquake", "cyclone", "epidemic", "pandemic", "outbreak", "security", "terrorism", "internal security", "naxal", "insurgency", "border security", "defence", "armed forces", "paramilitary", "police", "crime", "corruption", "scam", "investigation", "probe", "enforcement directorate", "cbi", "ed", "ncb", "narcotics", "money laundering", "hawala", "cyber crime", "cyber security", "data breach", "privacy", "right to privacy"
       ];
 
       let keywordScore = 0;
@@ -467,17 +546,13 @@ async function processOneTweet() {
     
     // Show top 3 articles with their scores for debugging
     console.log(`[DEBUG] Top articles by priority:`);
-    for (let i = 0; i < Math.min(3, scoredArticles.length); i++) {
+    for (let i = 0; i < Math.min(5, scoredArticles.length); i++) {
       const { item, score, media } = scoredArticles[i];
       const mediaInfo = media ? `${media.type}` : 'text-only';
       console.log(`[DEBUG] ${i + 1}. Score: ${score} | Media: ${mediaInfo} | "${item.title.substring(0, 60)}..."`);
     }
 
-    // Try each article in order of priority
-    let fallbackArticle = null;
-    let fallbackSummary = null;
-    let fallbackLink = null;
-
+    // Try each article in order of priority, only tweet if Gemini summary is available
     for (let i = 0; i < Math.min(scoredArticles.length, 5); i++) {
       const { item, score, media } = scoredArticles[i];
       const link = item.link || item.guid;
@@ -494,31 +569,15 @@ async function processOneTweet() {
       if (!content || content.length < 300) continue;
 
       let summary = null;
-      // Try Gemini summary for videos (highest priority), top 3 articles, or articles with media
-      if ((media && media.type === 'video') || i < 3 || media) {
-        try {
-          console.log(`[DEBUG] Generating Gemini summary for article ${i + 1} (score: ${score}, media: ${media ? media.type : 'none'})`);
-          summary = await generateStrictLengthSummary(content);
-        } catch (err) {
-          console.error(`[ERROR] Failed to generate summary: ${err.message}`);
-          // Fallback to simple summary
-          summary = content.replace(/\s+/g, ' ').trim().substring(0, 277);
-          if (summary.length > 277) summary = summary.substring(0, 277) + '...';
-        }
-      } else {
-        // Fallback: use first 260-280 chars of content
-        summary = content.replace(/\s+/g, ' ').trim().substring(0, 277);
-        if (summary.length > 277) summary = summary.substring(0, 277) + '...';
+      try {
+        console.log(`[DEBUG] Generating Gemini summary for article ${i + 1} (score: ${score}, media: ${media ? media.type : 'none'})`);
+        summary = await generateStrictLengthSummary(content);
+      } catch (err) {
+        console.error(`[ERROR] Failed to generate summary: ${err.message}`);
+        continue; // Skip this article if Gemini summary fails
       }
 
       if (!summary) continue;
-
-      // Save the first eligible article as fallback
-      if (!fallbackArticle) {
-        fallbackArticle = item;
-        fallbackSummary = summary;
-        fallbackLink = link;
-      }
 
       // Post the news
       console.log(`\n📌 Posting article (score: ${score}): ${item.title}`);
@@ -536,17 +595,6 @@ async function processOneTweet() {
       }
     }
 
-    // Fallback to highest-priority article as text-only
-    if (fallbackArticle && fallbackSummary && fallbackLink) {
-      console.log("⚠️ Posting highest-priority article as text-only fallback.");
-      const success = await postTweet(fallbackSummary, null);
-      if (success) {
-        postedLinks.add(fallbackLink);
-        savePostedLinks();
-        return true;
-      }
-    }
-
     console.log("⚠️ No suitable article found for tweeting.");
     return false;
   } catch (err) {
@@ -556,11 +604,11 @@ async function processOneTweet() {
 }
 
 async function processUntilTweetPosted(maxAttempts = 3) {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     console.log(`\n🌀 Overall Attempt ${attempt} to post tweet...`);
     const success = await processOneTweet();
     if (success) return;
-    if (attempt < maxAttempts) {
+    if (attempt < 3) {
       console.log("🔁 Retrying in 5 seconds...");
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
