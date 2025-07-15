@@ -4,7 +4,7 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Mon Jul 14 14:24:10 UTC 2025
+Last updated: Mon Jul 14 14:24:10 IST 2025
 
 1. https://timesofindia.indiatimes.com/world/us/king-charles-to-host-donald-trump-at-windsor-castle-first-us-president-to-get-second-invite-september-state-visit-confirmed/articleshow/122441417.cms
 2. https://www.livemint.com/market/stock-market-news/hcl-tech-q1-result-from-profit-deal-tcv-to-guidance-5-key-highlights-of-it-firms-june-quarter-earnings-11752493420801.html

@@ -516,12 +516,43 @@ async function processOneTweet() {
 
       let keywordScore = 0;
       const lowerContent = content.toLowerCase();
+      let score = 0;
+      // Define keyword groups for custom weighting
+      const economyKeywords = [
+        "gdp", "inflation", "fiscal deficit", "current account deficit", "monetary policy", "repo rate", "reverse repo", "rbi", "banking", "npas", "gst", "tax", "budget", "economic survey", "niti aayog", "planning commission", "msme", "startup", "disinvestment", "privatization", "public sector", "subsidy", "unemployment", "employment", "labour", "industry", "manufacturing", "service sector", "exports", "imports", "trade deficit", "balance of payments", "fdi", "fii", "stock market", "sebi", "bank", "insurance", "microfinance", "financial inclusion", "direct benefit transfer", "dbt", "aadhar", "jan dhan", "demonetisation", "black money", "income tax", "corporate tax", "customs duty", "excise duty", "public finance", "wto", "imf", "world bank", "brics", "g20"
+      ];
+      const highPriorityKeywords = [
+        // National/constitutional
+        "supreme court", "high court", "parliament", "president", "prime minister", "cabinet", "governor", "chief minister", "election commission", "judiciary", "law", "governance", "civil services", "upsc", "ias", "ips", "ifs", "ordinance", "bill", "act", "constitution", "amendment", "public interest litigation",
+        // Science/tech/health
+        "isro", "drdo", "space", "satellite", "mission", "mars", "moon", "chandrayaan", "gaganyaan", "nuclear", "missile", "defence", "technology", "innovation", "digital india", "artificial intelligence", "ai", "machine learning", "robotics", "biotechnology", "genome", "dna", "vaccine", "covid", "pandemic", "health", "disease", "medicine", "pharma", "research", "patent", "cyber", "internet", "data protection", "privacy", "blockchain", "fintech",
+        // Environment
+        "environment", "ecology", "biodiversity", "conservation", "wildlife", "forest", "climate change", "global warming", "carbon emission", "cop", "unfccc", "ipcc", "paris agreement", "ozone", "pollution", "air quality", "water conservation", "afforestation", "deforestation", "project tiger", "project elephant", "biosphere reserve", "national park", "wildlife sanctuary", "ramsar", "wetland", "mangrove", "coral reef", "clean energy", "renewable energy", "solar", "wind energy", "hydro power", "environmental impact assessment", "eia", "green tribunal", "ngt", "environment ministry", "moefcc",
+        // Major current affairs
+        "disaster", "flood", "drought", "earthquake", "cyclone", "epidemic", "pandemic", "outbreak", "security", "terrorism", "internal security", "naxal", "insurgency", "border security", "defence", "armed forces", "paramilitary", "police", "crime", "corruption", "scam", "investigation", "probe", "enforcement directorate", "cbi", "ed", "ncb", "narcotics", "money laundering", "hawala", "cyber crime", "cyber security", "data breach", "privacy", "right to privacy",
+        // Landmark events
+        "important", "significant", "notable", "landmark", "record", "highest", "lowest", "first time", "verdict", "judgment", "order", "ban", "strike", "protest", "violence", "arrest", "attack", "death"
+      ];
+      // Score high-priority keywords (weight 3)
+      for (const kw of highPriorityKeywords) {
+        if (lowerContent.includes(kw)) score += 3;
+      }
+      // Score economy/finance keywords (weight 0.5)
+      for (const kw of economyKeywords) {
+        if (lowerContent.includes(kw)) score += 0.5;
+      }
+      // Score all other keywords (weight 1)
       for (const kw of keywords) {
-        if (lowerContent.includes(kw)) keywordScore++;
+        if (
+          !highPriorityKeywords.includes(kw) &&
+          !economyKeywords.includes(kw) &&
+          lowerContent.includes(kw)
+        ) {
+          score += 1;
+        }
       }
 
       // Boost score based on media type priority: videos > images > text-only
-      let score = keywordScore;
       if (media) {
         if (media.type === 'video') {
           score += 5; // Highest priority for videos
@@ -529,7 +560,7 @@ async function processOneTweet() {
           score += 3; // Medium priority for images
         }
       }
-      // Text-only articles get no media boost (score = keywordScore only)
+      // Text-only articles get no media boost
 
       scoredArticles.push({ item, score, media });
     }
