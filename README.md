@@ -4,11 +4,7 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-<<<<<<< HEAD
 Last updated: Mon Jul 14 14:24:10 IST 2025
-=======
-Last updated: Tue Jul 15 12:49:55 UTC 2025
->>>>>>> c8beca304275156278b1ebe0f472f5c0da8cbd5c
 
 1. https://www.livemint.com/market/stock-market-news/expert-view-indian-stock-markets-valuation-rich-earnings-recovery-key-to-sustaining-gains-says-incred-fund-manager-11752578849270.html
 2. https://timesofindia.indiatimes.com/world/us/trump-administration-says-it-wont-publish-major-climate-change-report-on-nasa-website-as-promised/articleshow/122499929.cms
