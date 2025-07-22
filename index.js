@@ -37,7 +37,6 @@ const rssFeeds = [
   "https://feeds.feedburner.com/ndtvnews-india-news",
   // Business news
   "https://economictimes.indiatimes.com/rssfeeds/1977021501.cms",
-  "https://www.livemint.com/rss/markets",
   // Technology news
   "https://techcrunch.com/feed/",
   "https://www.theverge.com/rss/index.xml",
