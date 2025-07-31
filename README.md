@@ -4,15 +4,15 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Thu Jul 31 10:26:53 UTC 2025
+Last updated: Thu Jul 31 12:50:54 UTC 2025
 
-1. https://www.ndtv.com/india-news/us-acting-unreasonable-india-should-not-give-in-shashi-tharoor-on-tariffs-trade-talks-agreement-8990159#publisher=newsstand
-2. https://techcrunch.com/2025/07/31/proton-releases-a-new-app-for-two-factor-authentication/
-3. https://indianexpress.com/article/india/indian-citizens-imprisoned-death-penalties-foreign-jails-10160573/
-4. https://www.ndtv.com/opinion/a-rude-awakening-for-india-navigating-the-trumpian-tempest-by-shashi-tharoor-8990810#publisher=newsstand
-5. https://timesofindia.indiatimes.com/world/europe/lithuania-prime-minister-gintautas-paluckas-steps-down-after-investigations-and-protests/articleshow/123016776.cms
-6. https://www.ndtv.com/world-news/live-updates-trump-announces-25-tariff-on-india-along-with-penalty-india-us-trade-trump-tariffs-donald-trump-8984303#publisher=newsstand
-7. https://economictimes.indiatimes.com/markets/stocks/live-blog/adani-enterprises-ltd-q1-results-vedanta-swiggy-q1-earnings-fy26-ambuja-cement-dabur-pb-fintech-revenue-earning-profit-loss-dividend-today-report-date-time-31-july-2025/liveblog/123012448.cms
-8. https://timesofindia.indiatimes.com/world/us/sydney-sweeneys-jeans-ad-sparks-white-supremacy-backlash-white-house-calls-outrage-moronic-says-this-is-why-americans-voted-for-trump/articleshow/123009271.cms
-9. https://timesofindia.indiatimes.com/world/south-asia/bnp-khaleda-to-contest-bangladesh-polls-if-held-in-december/articleshow/123008622.cms
-10. https://timesofindia.indiatimes.com/world/us/defend-the-homeland-ice-aims-to-double-workforce-as-immigration-crackdown-expands-seeks-heroic-americans-in-new-campaign/articleshow/123005583.cms
+1. https://www.thehindu.com/news/national/top-news-of-the-day-trump-slams-india-and-russia-as-dead-economies-in-fresh-attack-special-nia-court-acquits-all-seven-accused-including-pragya-thakur-in-malegaon-blast-case-and-more/article69878271.ece
+2. https://www.ndtv.com/india-news/us-acting-unreasonable-india-should-not-give-in-shashi-tharoor-on-tariffs-trade-talks-agreement-8990159#publisher=newsstand
+3. https://techcrunch.com/2025/07/31/proton-releases-a-new-app-for-two-factor-authentication/
+4. https://indianexpress.com/article/india/indian-citizens-imprisoned-death-penalties-foreign-jails-10160573/
+5. https://www.ndtv.com/opinion/a-rude-awakening-for-india-navigating-the-trumpian-tempest-by-shashi-tharoor-8990810#publisher=newsstand
+6. https://timesofindia.indiatimes.com/world/europe/lithuania-prime-minister-gintautas-paluckas-steps-down-after-investigations-and-protests/articleshow/123016776.cms
+7. https://www.ndtv.com/world-news/live-updates-trump-announces-25-tariff-on-india-along-with-penalty-india-us-trade-trump-tariffs-donald-trump-8984303#publisher=newsstand
+8. https://economictimes.indiatimes.com/markets/stocks/live-blog/adani-enterprises-ltd-q1-results-vedanta-swiggy-q1-earnings-fy26-ambuja-cement-dabur-pb-fintech-revenue-earning-profit-loss-dividend-today-report-date-time-31-july-2025/liveblog/123012448.cms
+9. https://timesofindia.indiatimes.com/world/us/sydney-sweeneys-jeans-ad-sparks-white-supremacy-backlash-white-house-calls-outrage-moronic-says-this-is-why-americans-voted-for-trump/articleshow/123009271.cms
+10. https://timesofindia.indiatimes.com/world/south-asia/bnp-khaleda-to-contest-bangladesh-polls-if-held-in-december/articleshow/123008622.cms
