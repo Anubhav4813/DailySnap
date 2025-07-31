@@ -69,7 +69,11 @@ const parser = new Parser({
 async function extractArticleContent(url) {
   try {
     const { data } = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
       timeout: 10000
     });
 
@@ -149,7 +153,7 @@ function extractMediaFromItem(item) {
       if (mediaContent && mediaContent.$ && mediaContent.$.url) {
         console.log(`[DEBUG] Found media:content: ${mediaContent.$.url}, type: ${mediaContent.$.type}`);
         const mediaType = mediaContent.$.type || '';
-        
+
         // If type is specified, use it
         if (mediaType.startsWith('image/')) {
           return { type: 'image', url: mediaContent.$.url };
@@ -157,13 +161,13 @@ function extractMediaFromItem(item) {
         if (mediaType.startsWith('video/')) {
           return { type: 'video', url: mediaContent.$.url };
         }
-        
+
         // If no type specified, guess from URL extension
         const url = mediaContent.$.url;
         const ext = url.split('.').pop().toLowerCase().split('?')[0];
         const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         const videoExts = ['mp4', 'mov', 'webm', 'avi'];
-        
+
         if (imageExts.includes(ext)) {
           console.log(`[DEBUG] Detected image from extension: ${ext}`);
           return { type: 'image', url: url };
@@ -246,7 +250,7 @@ function validateMediaUrl(url) {
     if (url.includes('/images/') || url.includes('/img/') || url.includes('image') || url.includes('.jpg') || url.includes('.png') || url.includes('.jpeg')) {
       return { type: 'image', url: url };
     }
-    
+
     if (url.includes('/videos/') || url.includes('/video/') || url.includes('.mp4') || url.includes('.webm')) {
       return { type: 'video', url: url };
     }
@@ -397,14 +401,14 @@ function loadPostedLinks() {
       const data = fs.readFileSync(POSTED_LINKS_FILE, 'utf-8');
       const arr = JSON.parse(data);
       postedLinks = new Set(arr);
-      
+
       // Clean old links (keep only last 1000 to avoid memory issues)
       if (postedLinks.size > 1000) {
         const linksArray = Array.from(postedLinks);
         postedLinks = new Set(linksArray.slice(-1000));
         savePostedLinks();
       }
-      
+
       console.log(`[DEBUG] Loaded ${postedLinks.size} posted links from file.`);
     }
   } catch (err) {
@@ -426,7 +430,7 @@ async function processOneTweet() {
   try {
     debugLog('Starting processOneTweet function');
     debugger; // Breakpoint 1: Function start
-    
+
 
     let allArticles = [];
     // Fetch and collect articles from all feeds
@@ -471,7 +475,7 @@ async function processOneTweet() {
     for (const item of allArticles) {
       debugLog(`Processing article: ${item.title}`);
       debugger; // Breakpoint 4: Before processing each article
-      
+
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
         content = await extractArticleContent(item.link);
@@ -570,7 +574,7 @@ async function processOneTweet() {
       if (b.score !== a.score) {
         return b.score - a.score;
       }
-      
+
       // If scores are equal, prioritize by media type
       const getMediaPriority = (media) => {
         if (!media) return 0; // text-only
@@ -578,11 +582,11 @@ async function processOneTweet() {
         if (media.type === 'image') return 2;
         return 1;
       };
-      
+
       return getMediaPriority(b.media) - getMediaPriority(a.media);
     });
     console.log(`[DEBUG] Scored ${scoredArticles.length} articles`);
-    
+
     // Show top 3 articles with their scores for debugging
     console.log(`[DEBUG] Top articles by priority:`);
     for (let i = 0; i < Math.min(5, scoredArticles.length); i++) {
