@@ -440,7 +440,11 @@ async function processOneTweet() {
         debugLog(`Fetching feed: ${feedUrl}`);
         debugger; // Breakpoint 2: Before each feed fetch
         const response = await axios.get(feedUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0' },
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            'Accept-Language': 'en-US,en;q=0.9'
+          },
           timeout: 10000
         });
         const feed = await parser.parseString(response.data);
