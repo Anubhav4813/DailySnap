@@ -68,8 +68,8 @@ const parser = new Parser({
 
 async function extractArticleContent(url) {
   try {
-    // Random delay to make requests more natural (500ms to 2000ms)
-    const randomDelay = Math.floor(Math.random() * 1500) + 500;
+    // Minimal random delay for GitHub Actions (200ms to 800ms)
+    const randomDelay = Math.floor(Math.random() * 600) + 200;
     await new Promise(resolve => setTimeout(resolve, randomDelay));
     
     const { data } = await axios.get(url, {
@@ -463,8 +463,8 @@ async function processOneTweet() {
         debugLog(`Found ${feed.items.length} items in feed: ${feedUrl}`);
         allArticles.push(...feed.items.slice(0, 5));
         
-        // Add small delay between feeds to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Minimal delay for GitHub Actions (reduce from 1500ms to 300ms)
+        await new Promise(resolve => setTimeout(resolve, 300));
       } catch (err) {
         console.error(`❌ Failed to fetch or parse feed: ${feedUrl} - ${err.message}`);
       }
@@ -498,9 +498,9 @@ async function processOneTweet() {
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
         content = await extractArticleContent(item.link);
-        // Add delay after article extraction to avoid overwhelming servers
+        // Minimal delay for GitHub Actions (reduce from 1000ms to 200ms)
         if (content) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
       if (!content || content.length < 300) continue;
