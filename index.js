@@ -72,31 +72,102 @@ async function extractArticleContent(url) {
     const randomDelay = Math.floor(Math.random() * 600) + 200;
     await new Promise(resolve => setTimeout(resolve, randomDelay));
     
-    const { data } = await axios.get(url, {
-      headers: {
+    // Enhanced headers for different sites
+    let headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    };
+
+    // Site-specific headers for better success rates
+    if (url.includes('ndtv.com')) {
+      headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      },
-      timeout: 10000
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Cache-Control': 'max-age=0',
+        'Sec-Ch-Ua': '"Not)A;Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+        'Referer': 'https://www.google.com/'
+      };
+    } else if (url.includes('timesofindia.com')) {
+      headers['Referer'] = 'https://www.google.com/';
+    }
+    
+    const { data } = await axios.get(url, {
+      headers,
+      timeout: 15000, // Increased timeout for slower sites
+      maxRedirects: 5,
+      validateStatus: function (status) {
+        return status < 500; // Accept anything less than 500
+      }
     });
 
+    // Check for successful response
+    if (!data || data.length < 100) {
+      console.warn(`[WARN] Empty or minimal response from ${url}`);
+      return null;
+    }
+
     const $ = cheerio.load(data);
-    $('script, style, iframe, noscript, figure, .ad-container').remove();
+    $('script, style, iframe, noscript, figure, .ad-container, .advertisement').remove();
+
+    let content = '';
 
     if (url.includes('thehindu.com')) {
-      return $('[itemprop="articleBody"]').text().trim();
+      content = $('[itemprop="articleBody"]').text().trim() ||
+                $('.content').text().trim() ||
+                $('article').text().trim();
     } else if (url.includes('indianexpress.com')) {
-      return $('.full-details, .editor-body').text().trim();
+      content = $('.full-details, .editor-body, .story-details').text().trim() ||
+                $('article').text().trim();
+    } else if (url.includes('ndtv.com')) {
+      content = $('div[itemprop="articleBody"]').text().trim() ||
+                $('.ins_storybody').text().trim() ||
+                $('.story_content').text().trim() ||
+                $('article').text().trim();
+    } else if (url.includes('timesofindia.com')) {
+      content = $('.Normal, .ga-headline, ._3YYSt').text().trim() ||
+                $('article').text().trim();
     } else {
-      return $('article, .article-content, [itemprop="articleBody"]').text().trim() ||
-        $('body').text().trim();
+      content = $('article, .article-content, [itemprop="articleBody"], .content, .story-body').text().trim() ||
+                $('body').text().trim();
     }
+
+    // Clean up the content
+    content = content.replace(/\s+/g, ' ').trim();
+    
+    if (content.length < 100) {
+      console.warn(`[WARN] Content too short (${content.length} chars) from ${url}`);
+      return null;
+    }
+
+    return content;
   } catch (error) {
-    console.error(`Error extracting content from ${url}:`, error.message);
+    const errorCode = error.response?.status || 'unknown';
+    const errorMsg = error.message || 'unknown error';
+    
+    // Log different error types with appropriate severity
+    if (errorCode === 403) {
+      console.warn(`[WARN] Access denied (403) for ${url} - site may be blocking requests`);
+    } else if (errorCode === 404) {
+      console.warn(`[WARN] Article not found (404) for ${url}`);
+    } else if (errorCode === 429) {
+      console.warn(`[WARN] Rate limited (429) for ${url} - too many requests`);
+    } else {
+      console.error(`[ERROR] Failed to extract content from ${url}: ${errorCode} - ${errorMsg}`);
+    }
+    
     return null;
   }
 }
@@ -497,6 +568,12 @@ async function processOneTweet() {
 
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
+        // Skip NDTV articles if they consistently fail (403 errors)
+        if (item.link && item.link.includes('ndtv.com')) {
+          console.log(`[WARN] Skipping NDTV article due to access restrictions: ${item.title}`);
+          continue;
+        }
+        
         content = await extractArticleContent(item.link);
         // Minimal delay for GitHub Actions (reduce from 1000ms to 200ms)
         if (content) {
@@ -630,6 +707,12 @@ async function processOneTweet() {
 
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
+        // Skip problematic sites that consistently return 403
+        if (item.link && (item.link.includes('ndtv.com') || item.link.includes('#publisher=newsstand'))) {
+          console.log(`[WARN] Skipping article from restricted site: ${item.title}`);
+          continue;
+        }
+        
         content = await extractArticleContent(item.link);
       }
       if (!content || content.length < 300) continue;
