@@ -68,6 +68,10 @@ const parser = new Parser({
 
 async function extractArticleContent(url) {
   try {
+    // Random delay to make requests more natural (500ms to 2000ms)
+    const randomDelay = Math.floor(Math.random() * 1500) + 500;
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
+    
     const { data } = await axios.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
@@ -300,7 +304,9 @@ async function postTweet(text, media) {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
               'Accept': 'image/*, video/*',
-              'Accept-Language': 'en-US,en;q=0.9'
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Cache-Control': 'no-cache',
+              'Connection': 'keep-alive'
             },
             timeout: 30000,
             maxContentLength: 5 * 1024 * 1024, // 5MB limit
@@ -456,6 +462,9 @@ async function processOneTweet() {
         const feed = await parser.parseString(response.data);
         debugLog(`Found ${feed.items.length} items in feed: ${feedUrl}`);
         allArticles.push(...feed.items.slice(0, 5));
+        
+        // Add small delay between feeds to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1500));
       } catch (err) {
         console.error(`❌ Failed to fetch or parse feed: ${feedUrl} - ${err.message}`);
       }
@@ -489,6 +498,10 @@ async function processOneTweet() {
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
         content = await extractArticleContent(item.link);
+        // Add delay after article extraction to avoid overwhelming servers
+        if (content) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
       if (!content || content.length < 300) continue;
 
