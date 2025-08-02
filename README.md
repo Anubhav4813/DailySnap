@@ -4,15 +4,15 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Sat Aug  2 12:10:04 UTC 2025
+Last updated: Sat Aug  2 12:15:21 UTC 2025
 
-1. https://indianexpress.com/article/india/rajnath-flays-opposition-raising-questions-operation-sindoor-in-parliament-10165557/
-2. https://economictimes.indiatimes.com/markets/stocks/indian-stock-market-crash-coming-trumps-25-tariff-explained/videoshow/123061527.cms
-3. https://www.thehindu.com/news/national/kerala/its-painful-to-see-the-hills-vanish-but-change-can-happen-here-too-says-madhav-gadgil/article69886423.ece
-4. https://indianexpress.com/article/india/preethi-mary-vandana-francis-nuns-forced-conversion-arrest-chhattisgarh-10165384/
-5. https://indianexpress.com/article/india/india-rudra-roop-operation-sindoor-pm-modi-varanasi-10165298/
-6. https://www.thehindu.com/sci-tech/science/scientists-use-ai-designed-proteins-to-generate-immune-cells/article69886067.ece
-7. https://www.thehindu.com/opinion/columns/stephen-colbert-last-stand-the-late-show-cbs-paramount/article69868887.ece
-8. https://www.ndtv.com/india-news/day-not-far-when-himachal-pradesh-may-vanish-from-country-map-supreme-court-ecological-imbalance-9004218#publisher=newsstand
-9. https://timesofindia.indiatimes.com/world/us/too-late-powell-trump-calls-out-fed-chief-on-interest-rates-demands-jerome-to-step-down-after-kugler-exits/articleshow/123053526.cms
-10. https://timesofindia.indiatimes.com/world/us/58-year-era-ends-corporation-for-public-broadcasting-to-close-after-trump-pulls-funding-1-1-billion-cut-by-congress/articleshow/123051766.cms
+1. https://www.thehindu.com/news/national/election-commission-has-become-pm-modis-puppet-mallikarjun-kharge/article69886630.ece
+2. https://indianexpress.com/article/india/rajnath-flays-opposition-raising-questions-operation-sindoor-in-parliament-10165557/
+3. https://economictimes.indiatimes.com/markets/stocks/indian-stock-market-crash-coming-trumps-25-tariff-explained/videoshow/123061527.cms
+4. https://www.thehindu.com/news/national/kerala/its-painful-to-see-the-hills-vanish-but-change-can-happen-here-too-says-madhav-gadgil/article69886423.ece
+5. https://indianexpress.com/article/india/preethi-mary-vandana-francis-nuns-forced-conversion-arrest-chhattisgarh-10165384/
+6. https://indianexpress.com/article/india/india-rudra-roop-operation-sindoor-pm-modi-varanasi-10165298/
+7. https://www.thehindu.com/sci-tech/science/scientists-use-ai-designed-proteins-to-generate-immune-cells/article69886067.ece
+8. https://www.thehindu.com/opinion/columns/stephen-colbert-last-stand-the-late-show-cbs-paramount/article69868887.ece
+9. https://www.ndtv.com/india-news/day-not-far-when-himachal-pradesh-may-vanish-from-country-map-supreme-court-ecological-imbalance-9004218#publisher=newsstand
+10. https://timesofindia.indiatimes.com/world/us/too-late-powell-trump-calls-out-fed-chief-on-interest-rates-demands-jerome-to-step-down-after-kugler-exits/articleshow/123053526.cms
