@@ -55,9 +55,6 @@ const rssFeeds = [
   "https://www.bollywoodhungama.com/rss/news.xml",
   // Environment
   "https://www.thehindu.com/sci-tech/energy-and-environment/feeder/default.rss",
-  // Opinion
-  "https://indianexpress.com/section/opinion/feed/",
-  "https://www.thehindu.com/opinion/feeder/default.rss"
 ];
 
 const parser = new Parser({
