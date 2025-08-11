@@ -34,7 +34,6 @@ const rssFeeds = [
   "https://www.thehindu.com/news/national/feeder/default.rss",
   "https://indianexpress.com/section/india/feed/",
   "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
-  "https://feeds.feedburner.com/ndtvnews-india-news",
   // Business news
   "https://economictimes.indiatimes.com/rssfeeds/1977021501.cms",
   // Technology news
@@ -80,24 +79,7 @@ async function extractArticleContent(url) {
     };
 
     // Site-specific headers for better success rates
-    if (url.includes('ndtv.com')) {
-      headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'Cache-Control': 'max-age=0',
-        'Sec-Ch-Ua': '"Not)A;Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1',
-        'Referer': 'https://www.google.com/'
-      };
-    } else if (url.includes('timesofindia.com')) {
+    if (url.includes('timesofindia.com')) {
       headers['Referer'] = 'https://www.google.com/';
     }
     
@@ -127,11 +109,6 @@ async function extractArticleContent(url) {
                 $('article').text().trim();
     } else if (url.includes('indianexpress.com')) {
       content = $('.full-details, .editor-body, .story-details').text().trim() ||
-                $('article').text().trim();
-    } else if (url.includes('ndtv.com')) {
-      content = $('div[itemprop="articleBody"]').text().trim() ||
-                $('.ins_storybody').text().trim() ||
-                $('.story_content').text().trim() ||
                 $('article').text().trim();
     } else if (url.includes('timesofindia.com')) {
       content = $('.Normal, .ga-headline, ._3YYSt').text().trim() ||
@@ -565,12 +542,6 @@ async function processOneTweet() {
 
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
-        // Skip NDTV articles if they consistently fail (403 errors)
-        if (item.link && item.link.includes('ndtv.com')) {
-          console.log(`[WARN] Skipping NDTV article due to access restrictions: ${item.title}`);
-          continue;
-        }
-        
         content = await extractArticleContent(item.link);
         // Minimal delay for GitHub Actions (reduce from 1000ms to 200ms)
         if (content) {
@@ -704,12 +675,6 @@ async function processOneTweet() {
 
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
-        // Skip problematic sites that consistently return 403
-        if (item.link && (item.link.includes('ndtv.com') || item.link.includes('#publisher=newsstand'))) {
-          console.log(`[WARN] Skipping article from restricted site: ${item.title}`);
-          continue;
-        }
-        
         content = await extractArticleContent(item.link);
       }
       if (!content || content.length < 300) continue;
