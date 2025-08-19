@@ -4,15 +4,15 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Mon Aug 11 14:24:41 UTC 2025
+Last updated: Tue Aug 19 16:28:16 UTC 2025
 
-1. https://www.thehindu.com/sci-tech/health/covid-19s-hidden-toll-how-the-pandemic-has-aged-our-brains/article69918889.ece
-2. https://timesofindia.indiatimes.com/world/us/only-company-that-called-me-for-interview-in-chipotle-indian-origin-techies-silicon-valley-story-goes-viral/articleshow/123238863.cms
-3. https://www.theverge.com/decoder-podcast-with-nilay-patel/756736/notion-ceo-ivan-zhao-productivity-software-design-ai-interview
-4. https://timesofindia.indiatimes.com/world/us/sorry-about-jd-vance-circus-owner-of-oxfordshire-manor-house-where-vp-is-staying-apologizes-to-neighbors/articleshow/123237766.cms
-5. https://www.thehindu.com/sci-tech/technology/google-vs-cci-what-the-android-antitrust-case-means-for-indias-digital-ecosystem/article69919327.ece
-6. https://indianexpress.com/article/india/naxal-hit-bijapurs-big-challenge-getting-9650-children-back-to-school-10182486/
-7. https://indianexpress.com/article/technology/artificial-intelligence/goodbye-165000-tech-jobs-student-coders-seek-work-at-chipotle-10182346/
-8. https://www.thehindu.com/news/national/parliament-monsoon-session-lok-sabha-rajya-sabha-day-16-live-updates-august-11-2025/article69918713.ece
-9. https://www.thehindu.com/news/national/tamil-nadu/ramadoss-vs-anbumani-the-father-son-fight-for-pattali-makkal-katchi-pmk-leadership-explained/article69917786.ece
-10. https://www.thehindu.com/news/national/assam/regional-rivals-urged-to-unite-ahead-of-bodoland-polls-in-assam/article69916947.ece
+1. https://timesofindia.indiatimes.com/world/us/no-anti-american-behavior-will-be-tolerated-new-rules-for-visa-holders-green-card-applicants/articleshow/123391194.cms
+2. https://timesofindia.indiatimes.com/world/us/florida-accident-indian-origin-truck-driver-harjinder-singhs-work-permit-approved-by-biden-admin-claims-dhs/articleshow/123388928.cms
+3. https://timesofindia.indiatimes.com/world/us/questionable-life-choices-elon-musks-baby-mama-ashley-st-clair-says-shes-getting-evicted-has-no-money/articleshow/123387367.cms
+4. https://timesofindia.indiatimes.com/world/us/no-elections-during-war-donald-trumps-jibe-at-zelenskyy-over-ukraine-polls-jokes-about-starting-a-conflict-in-us/articleshow/123382607.cms
+5. https://economictimes.indiatimes.com/markets/stocks/news/gst-push-gives-markets-clear-direction-says-mayuresh-joshi/slideshow/123381768.cms
+6. https://timesofindia.indiatimes.com/world/us/us-crackdown-on-foreign-students-over-6000-visas-revoked-this-year-about-4000-linked-to-criminal-offences/articleshow/123377612.cms
+7. https://timesofindia.indiatimes.com/world/us/italian-pm-giorgia-meloni-greets-us-aide-with-namaste-netizens-call-it-modi-effect-watch/articleshow/123376854.cms
+8. https://timesofindia.indiatimes.com/world/us/kill-potus-us-woman-posts-gruesome-death-threats-against-us-president-donald-trump-calls-him-a-terrorist/articleshow/123375437.cms
+9. https://economictimes.indiatimes.com/markets/stocks/news/strong-volumes-channel-breakout-keep-mm-stock-in-bullish-zone-says-rajesh-palviya/videoshow/123367456.cms
+10. https://techcrunch.com/2025/08/18/xs-declining-android-app-installs-are-hurting-subscription-revenue/
