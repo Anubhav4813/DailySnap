@@ -20,6 +20,7 @@ const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models
 const MIN_SUMMARY_LENGTH = 240;
 const MAX_SUMMARY_LENGTH = 280;
 const MAX_RETRIES = 1;
+const DRY_RUN = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true';
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -39,7 +40,6 @@ const rssFeeds = [
   // Technology news
   "https://techcrunch.com/feed/",
   "https://www.theverge.com/rss/index.xml",
-  "https://www.gadgets360.com/rss/news",
   "https://github.blog/feed/",
   "https://www.thehindu.com/sci-tech/technology/feeder/default.rss",
   "https://indianexpress.com/section/technology/feed/",
@@ -59,8 +59,112 @@ const rssFeeds = [
 const parser = new Parser({
   customFields: {
     item: ['content:encoded', 'media:content']
+  },
+  // Provide default headers for parseURL fallback to improve success rates
+  requestOptions: {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+      'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*'
+    },
+    timeout: 10000
   }
 });
+
+// --- Feed health tracking (to skip flaky feeds temporarily) ---
+const FEED_HEALTH_FILE = 'feed_health.json';
+let feedHealth = {};
+
+function loadFeedHealth() {
+  try {
+    if (fs.existsSync(FEED_HEALTH_FILE)) {
+      const raw = fs.readFileSync(FEED_HEALTH_FILE, 'utf-8');
+      feedHealth = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('[WARN] Could not load feed health file:', e.message);
+    feedHealth = {};
+  }
+}
+
+function saveFeedHealth() {
+  try {
+    fs.writeFileSync(FEED_HEALTH_FILE, JSON.stringify(feedHealth, null, 2));
+  } catch (e) {
+    console.warn('[WARN] Could not save feed health file:', e.message);
+  }
+}
+
+function markFeedResult(url, ok) {
+  const now = Date.now();
+  const entry = feedHealth[url] || { consecutiveFailures: 0, lastSuccess: 0, disabledUntil: 0 };
+  if (ok) {
+    entry.consecutiveFailures = 0;
+    entry.lastSuccess = now;
+    entry.disabledUntil = 0;
+  } else {
+    entry.consecutiveFailures = (entry.consecutiveFailures || 0) + 1;
+    // Backoff: after 3 consecutive failures, disable for 6 hours; after 5, disable for 24 hours
+    if (entry.consecutiveFailures === 3) {
+      entry.disabledUntil = now + 6 * 60 * 60 * 1000;
+    } else if (entry.consecutiveFailures >= 5) {
+      entry.disabledUntil = now + 24 * 60 * 60 * 1000;
+    }
+  }
+  feedHealth[url] = entry;
+}
+
+function shouldSkipFeed(url) {
+  const entry = feedHealth[url];
+  if (!entry) return false;
+  return entry.disabledUntil && Date.now() < entry.disabledUntil;
+}
+
+// Fetch RSS with retry and fallback to parser.parseURL
+async function fetchFeedWithRetry(feedUrl, retries = 2) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  };
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      debugLog(`Fetching feed (attempt ${attempt}): ${feedUrl}`);
+      const response = await axios.get(feedUrl, { headers, timeout: 10000, maxRedirects: 5 });
+      // Basic sanity check
+      if (!response.data || String(response.data).length < 100) {
+        throw new Error('Empty or too-small RSS response');
+      }
+      const feed = await parser.parseString(response.data);
+      markFeedResult(feedUrl, true);
+      return feed.items || [];
+    } catch (e) {
+      lastErr = e;
+      debugLog(`Primary fetch failed for ${feedUrl}, will try fallback parseURL if possible.`, { message: e.message });
+      // Small jitter before fallback/next attempt
+      await new Promise(r => setTimeout(r, 300 + Math.floor(Math.random() * 300)));
+      try {
+        const feed = await parser.parseURL(feedUrl);
+        if (feed && feed.items && feed.items.length) {
+          markFeedResult(feedUrl, true);
+          return feed.items;
+        }
+        throw new Error('parseURL returned no items');
+      } catch (fallbackErr) {
+        lastErr = fallbackErr;
+        debugLog(`Fallback parseURL failed for ${feedUrl}`, { message: fallbackErr.message });
+        // On next loop iteration, retry again (up to retries)
+      }
+    }
+  }
+  console.error(`❌ All attempts failed for feed: ${feedUrl} - ${lastErr ? lastErr.message : 'unknown error'}`);
+  markFeedResult(feedUrl, false);
+  return [];
+}
 
 async function extractArticleContent(url) {
   try {
@@ -316,6 +420,12 @@ function validateMediaUrl(url) {
 
 // Post tweet with image or video support - IMPROVED
 async function postTweet(text, media) {
+  if (DRY_RUN) {
+    console.log('[DRY_RUN] Would post tweet:');
+    console.log('Text:', text);
+    if (media) console.log('Media:', media);
+    return true;
+  }
   const mimeFromExt = (url) => {
     if (!url) return null;
     const ext = url.split('.').pop().toLowerCase().split('?')[0];
@@ -491,22 +601,17 @@ async function processOneTweet() {
     debugLog(`Processing ${rssFeeds.length} RSS feeds`);
     for (const feedUrl of rssFeeds) {
       try {
+        if (shouldSkipFeed(feedUrl)) {
+          debugLog(`Skipping disabled feed for now: ${feedUrl}`);
+          continue;
+        }
+
         debugLog(`Fetching feed: ${feedUrl}`);
         debugger; // Breakpoint 2: Before each feed fetch
-        const response = await axios.get(feedUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-            'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive'
-          },
-          timeout: 10000
-        });
-        const feed = await parser.parseString(response.data);
-        debugLog(`Found ${feed.items.length} items in feed: ${feedUrl}`);
-        allArticles.push(...feed.items.slice(0, 5));
+
+        const items = await fetchFeedWithRetry(feedUrl, 2);
+        debugLog(`Found ${items.length} items in feed: ${feedUrl}`);
+        allArticles.push(...items.slice(0, 5));
         
         // Minimal delay for GitHub Actions (reduce from 1500ms to 300ms)
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -730,7 +835,9 @@ async function processUntilTweetPosted(maxAttempts = 3) {
 
 (async () => {
   console.log("🚀 Starting scheduled summarizer...");
+  loadFeedHealth();
   loadPostedLinks();
   await processUntilTweetPosted(3);
+  saveFeedHealth();
   console.log("🏁 Finished");
 })();
