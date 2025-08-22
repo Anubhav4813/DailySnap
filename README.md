@@ -4,15 +4,15 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Tue Aug 19 16:28:16 UTC 2025
+Last updated: Fri Aug 22 03:09:55 UTC 2025
 
-1. https://timesofindia.indiatimes.com/world/us/no-anti-american-behavior-will-be-tolerated-new-rules-for-visa-holders-green-card-applicants/articleshow/123391194.cms
-2. https://timesofindia.indiatimes.com/world/us/florida-accident-indian-origin-truck-driver-harjinder-singhs-work-permit-approved-by-biden-admin-claims-dhs/articleshow/123388928.cms
-3. https://timesofindia.indiatimes.com/world/us/questionable-life-choices-elon-musks-baby-mama-ashley-st-clair-says-shes-getting-evicted-has-no-money/articleshow/123387367.cms
-4. https://timesofindia.indiatimes.com/world/us/no-elections-during-war-donald-trumps-jibe-at-zelenskyy-over-ukraine-polls-jokes-about-starting-a-conflict-in-us/articleshow/123382607.cms
-5. https://economictimes.indiatimes.com/markets/stocks/news/gst-push-gives-markets-clear-direction-says-mayuresh-joshi/slideshow/123381768.cms
-6. https://timesofindia.indiatimes.com/world/us/us-crackdown-on-foreign-students-over-6000-visas-revoked-this-year-about-4000-linked-to-criminal-offences/articleshow/123377612.cms
-7. https://timesofindia.indiatimes.com/world/us/italian-pm-giorgia-meloni-greets-us-aide-with-namaste-netizens-call-it-modi-effect-watch/articleshow/123376854.cms
-8. https://timesofindia.indiatimes.com/world/us/kill-potus-us-woman-posts-gruesome-death-threats-against-us-president-donald-trump-calls-him-a-terrorist/articleshow/123375437.cms
-9. https://economictimes.indiatimes.com/markets/stocks/news/strong-volumes-channel-breakout-keep-mm-stock-in-bullish-zone-says-rajesh-palviya/videoshow/123367456.cms
-10. https://techcrunch.com/2025/08/18/xs-declining-android-app-installs-are-hurting-subscription-revenue/
+1. https://timesofindia.indiatimes.com/world/rest-of-world/brazils-bolsonaro-faces-fresh-allegations-ex-president-received-5mn-over-a-year-money-laundering-case/articleshow/123442998.cms
+2. https://economictimes.indiatimes.com/markets/stocks/news/technical-setup-supports-accumulation-in-nykaa-bullish-view-ahead/videoshow/123432218.cms
+3. https://techcrunch.com/2025/08/21/as-india-bans-real-money-games-dream-sports-mpl-start-pulling-the-plug/
+4. https://timesofindia.indiatimes.com/world/us/laundromat-for-kremlin-trump-aide-peter-navarro-says-modi-is-a-great-leader-india-doesnt-need-russian-oil/articleshow/123440776.cms
+5. https://timesofindia.indiatimes.com/world/us/700000-from-us-to-india-indian-origin-doctor-krishnaswami-sriram-sentenced-to-34-months-in-jail-for-tax-evasion-medical-fraud/articleshow/123438187.cms
+6. https://timesofindia.indiatimes.com/world/us/immigration-fraud-uscis-issues-fresh-warning-against-providing-false-information-to-gain-citizenship/articleshow/123435546.cms
+7. https://timesofindia.indiatimes.com/world/rest-of-world/russia-launches-574-drones-40-missiles-at-ukraine-1-dead-us-owned-flex-factory-among-targets-zelenskyy-eyes-direct-talks-with-putin-trump/articleshow/123433330.cms
+8. https://timesofindia.indiatimes.com/world/us/cracker-barrel-goes-woke-ceo-under-maga-fire-for-changing-logo-first-time-in-48-years-removes-white-guy/articleshow/123433084.cms
+9. https://indianexpress.com/article/technology/vivo-unveils-mixed-reality-headset-taking-on-apple-meta-10202264/
+10. https://timesofindia.indiatimes.com/world/rest-of-world/irreversible-nuclear-state-north-korea-builds-secret-military-base-absent-from-uspyongyang-nuclear-talks/articleshow/123426183.cms
