@@ -1,0 +1,133 @@
+{
+  "timestamp": "2025-08-22T03:39:37.039Z",
+  "results": [
+    {
+      "url": "https://www.thehindu.com/news/national/feeder/default.rss",
+      "ok": true,
+      "status": 200,
+      "latency": 137,
+      "items": 100,
+      "latestPub": "2025-08-22T03:30:00.000Z"
+    },
+    {
+      "url": "https://indianexpress.com/section/india/feed/",
+      "ok": true,
+      "status": 200,
+      "latency": 52,
+      "items": 200,
+      "latestPub": "2025-08-22T01:19:35.000Z"
+    },
+    {
+      "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+      "ok": true,
+      "status": 200,
+      "latency": 122,
+      "items": 20,
+      "latestPub": "2025-08-22T03:24:11.000Z"
+    },
+    {
+      "url": "https://economictimes.indiatimes.com/rssfeeds/1977021501.cms",
+      "ok": true,
+      "status": 200,
+      "latency": 191,
+      "items": 50,
+      "latestPub": "2025-08-22T03:30:46.000Z"
+    },
+    {
+      "url": "https://techcrunch.com/feed/",
+      "ok": true,
+      "status": 200,
+      "latency": 110,
+      "items": 20,
+      "latestPub": "2025-08-22T00:31:38.000Z"
+    },
+    {
+      "url": "https://www.theverge.com/rss/index.xml",
+      "ok": true,
+      "status": 200,
+      "latency": 59,
+      "items": 10,
+      "latestPub": "2025-08-22T00:00:00.000Z"
+    },
+    {
+      "url": "https://github.blog/feed/",
+      "ok": true,
+      "status": 200,
+      "latency": 157,
+      "items": 10,
+      "latestPub": "2025-08-21T18:02:34.000Z"
+    },
+    {
+      "url": "https://www.thehindu.com/sci-tech/technology/feeder/default.rss",
+      "ok": true,
+      "status": 200,
+      "latency": 54,
+      "items": 100,
+      "latestPub": "2025-08-22T03:07:14.000Z"
+    },
+    {
+      "url": "https://indianexpress.com/section/technology/feed/",
+      "ok": true,
+      "status": 200,
+      "latency": 63,
+      "items": 200,
+      "latestPub": "2025-08-22T02:58:15.000Z"
+    },
+    {
+      "url": "https://www.thehindu.com/sci-tech/feeder/default.rss",
+      "ok": true,
+      "status": 200,
+      "latency": 70,
+      "items": 100,
+      "latestPub": "2025-08-22T03:07:14.000Z"
+    },
+    {
+      "url": "https://www.indiatoday.in/rss/1206614",
+      "ok": true,
+      "status": 200,
+      "latency": 71,
+      "items": 12,
+      "latestPub": "2025-08-17T08:32:28.000Z"
+    },
+    {
+      "url": "https://timesofindia.indiatimes.com/rssfeeds/3908999.cms",
+      "ok": true,
+      "status": 200,
+      "latency": 51,
+      "items": 20,
+      "latestPub": "2015-02-16T05:45:24.000Z"
+    },
+    {
+      "url": "https://www.thehindu.com/sport/feeder/default.rss",
+      "ok": true,
+      "status": 200,
+      "latency": 51,
+      "items": 100,
+      "latestPub": "2025-08-21T22:15:54.000Z"
+    },
+    {
+      "url": "https://www.espncricinfo.com/rss/content/story/feeds/6.xml",
+      "ok": true,
+      "status": 200,
+      "latency": 193,
+      "items": 100,
+      "latestPub": "2025-08-21T16:55:26.000Z"
+    },
+    {
+      "url": "https://www.bollywoodhungama.com/rss/news.xml",
+      "ok": true,
+      "status": 200,
+      "latency": 350,
+      "items": 50,
+      "latestPub": "2025-08-21T13:42:53.000Z"
+    },
+    {
+      "url": "https://www.thehindu.com/sci-tech/energy-and-environment/feeder/default.rss",
+      "ok": true,
+      "status": 200,
+      "latency": 58,
+      "items": 100,
+      "latestPub": "2025-08-21T10:29:25.000Z"
+    }
+  ]
+}

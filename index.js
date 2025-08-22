@@ -56,6 +56,23 @@ const rssFeeds = [
   "https://www.thehindu.com/sci-tech/energy-and-environment/feeder/default.rss",
 ];
 
+// Optional: override or add feeds via external JSON (feeds.json) without code change
+try {
+  const externalFeedsPath = 'feeds.json';
+  if (fs.existsSync(externalFeedsPath)) {
+    const extra = JSON.parse(fs.readFileSync(externalFeedsPath, 'utf-8'));
+    if (Array.isArray(extra) && extra.length) {
+      console.log(`[INFO] Loaded ${extra.length} external feeds from feeds.json`);
+      // Merge (avoid duplicates)
+      for (const f of extra) {
+        if (typeof f === 'string' && !rssFeeds.includes(f)) rssFeeds.push(f);
+      }
+    }
+  }
+} catch (e) {
+  console.warn('[WARN] Could not load feeds.json:', e.message);
+}
+
 const parser = new Parser({
   customFields: {
     item: ['content:encoded', 'media:content']
@@ -164,6 +181,89 @@ async function fetchFeedWithRetry(feedUrl, retries = 2) {
   console.error(`❌ All attempts failed for feed: ${feedUrl} - ${lastErr ? lastErr.message : 'unknown error'}`);
   markFeedResult(feedUrl, false);
   return [];
+}
+
+// Lightweight direct checker (single attempt) for diagnostics; does not update health
+async function checkFeedOnce(feedUrl) {
+  const start = Date.now();
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
+    'Accept-Language': 'en-US,en;q=0.9'
+  };
+  try {
+    const res = await axios.get(feedUrl, { headers, timeout: 12000, maxRedirects: 5, validateStatus: s => s < 600 });
+    const latency = Date.now() - start;
+    if (res.status >= 400) {
+      return { url: feedUrl, ok: false, status: res.status, latency, error: `HTTP ${res.status}` };
+    }
+    if (!res.data || String(res.data).length < 80) {
+      return { url: feedUrl, ok: false, status: res.status, latency, error: 'Empty/short body' };
+    }
+    try {
+      const feed = await parser.parseString(res.data);
+      const items = feed.items || [];
+      if (!items.length) {
+        return { url: feedUrl, ok: false, status: res.status, latency, error: 'Parsed but no items' };
+      }
+      // Compute most recent pub date
+      let latest = null;
+      for (const it of items) {
+        const d = new Date(it.isoDate || it.pubDate || it.published || it.date || 0);
+        if (!isNaN(d) && (!latest || d > latest)) latest = d;
+      }
+      return { url: feedUrl, ok: true, status: res.status, latency, items: items.length, latestPub: latest ? latest.toISOString() : null };
+    } catch (parseErr) {
+      return { url: feedUrl, ok: false, status: res.status, latency, error: 'Parse error: ' + parseErr.message };
+    }
+  } catch (err) {
+    const latency = Date.now() - start;
+    const status = err.response?.status;
+    let reason = err.code || err.message;
+    if (status) reason = `HTTP ${status}: ${reason}`;
+    return { url: feedUrl, ok: false, status: status || null, latency, error: reason };
+  }
+}
+
+async function diagnoseFeeds() {
+  console.log('🔍 Running RSS feed diagnostics...');
+  const results = [];
+  for (const url of rssFeeds) {
+    if (shouldSkipFeed(url)) {
+      console.log(`⏭️  Skipping (temporarily disabled): ${url}`);
+      continue;
+    }
+    const r = await checkFeedOnce(url);
+    results.push(r);
+    if (r.ok) {
+      console.log(`✅ OK (${r.items} items, latest: ${r.latestPub || 'n/a'}, ${r.latency}ms) ${url}`);
+    } else {
+      console.log(`❌ FAIL (${r.error}, ${r.latency}ms) ${url}`);
+    }
+    // Small delay to avoid hammering
+    await new Promise(res => setTimeout(res, 300));
+  }
+  const diagFile = 'feed_diagnostics.json';
+  try {
+    fs.writeFileSync(diagFile, JSON.stringify({ timestamp: new Date().toISOString(), results }, null, 2));
+    console.log(`📝 Diagnostics saved to ${diagFile}`);
+  } catch (e) {
+    console.warn('[WARN] Could not save diagnostics file:', e.message);
+  }
+  // Summary
+  const ok = results.filter(r => r.ok).length;
+  const fail = results.filter(r => !r.ok).length;
+  console.log(`
+Summary: ${ok} OK, ${fail} failing.`);
+  if (fail) {
+    const topReasons = {}; // reason -> count
+    for (const r of results.filter(r => !r.ok)) {
+      const key = (r.error || 'unknown').split(':')[0];
+      topReasons[key] = (topReasons[key] || 0) + 1;
+    }
+    console.log('Top failure reasons:', topReasons);
+  }
+  console.log('Done.');
 }
 
 async function extractArticleContent(url) {
@@ -834,6 +934,11 @@ async function processUntilTweetPosted(maxAttempts = 3) {
 }
 
 (async () => {
+  if (process.argv.includes('--diagnose-feeds')) {
+    loadFeedHealth();
+    await diagnoseFeeds();
+    return; // Exit after diagnostics
+  }
   console.log("🚀 Starting scheduled summarizer...");
   loadFeedHealth();
   loadPostedLinks();
