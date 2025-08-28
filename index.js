@@ -21,6 +21,15 @@ const MIN_SUMMARY_LENGTH = 240;
 const MAX_SUMMARY_LENGTH = 280;
 const MAX_RETRIES = 1;
 const DRY_RUN = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true';
+// Diversity (domain balancing) feature toggles
+const DIVERSITY_ENABLED = process.env.DIVERSITY_ENABLED === '1' || process.env.DIVERSITY_ENABLED === 'true';
+const DIVERSITY_PENALTY_WEIGHT = parseFloat(process.env.DIVERSITY_PENALTY_WEIGHT || '1.5');
+const DIVERSITY_LOOKBACK = parseInt(process.env.DIVERSITY_LOOKBACK || '80', 10); // how many past links to consider
+// Per-feed diminishing returns (24h rolling) toggle
+const DIMINISHING_ENABLED = process.env.PER_FEED_DIMINISHING === '1' || process.env.PER_FEED_DIMINISHING === 'true';
+const DIMINISHING_WEIGHT = parseFloat(process.env.PER_FEED_WEIGHT || '1');
+const DIMINISHING_WINDOW_HOURS = parseInt(process.env.PER_FEED_WINDOW_HOURS || '24', 10);
+const BALANCED_SELECTION = process.env.BALANCED_SELECTION === '1' || process.env.BALANCED_SELECTION === 'true';
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -87,54 +96,7 @@ const parser = new Parser({
   }
 });
 
-// --- Feed health tracking (to skip flaky feeds temporarily) ---
-const FEED_HEALTH_FILE = 'feed_health.json';
-let feedHealth = {};
-
-function loadFeedHealth() {
-  try {
-    if (fs.existsSync(FEED_HEALTH_FILE)) {
-      const raw = fs.readFileSync(FEED_HEALTH_FILE, 'utf-8');
-      feedHealth = JSON.parse(raw);
-    }
-  } catch (e) {
-    console.warn('[WARN] Could not load feed health file:', e.message);
-    feedHealth = {};
-  }
-}
-
-function saveFeedHealth() {
-  try {
-    fs.writeFileSync(FEED_HEALTH_FILE, JSON.stringify(feedHealth, null, 2));
-  } catch (e) {
-    console.warn('[WARN] Could not save feed health file:', e.message);
-  }
-}
-
-function markFeedResult(url, ok) {
-  const now = Date.now();
-  const entry = feedHealth[url] || { consecutiveFailures: 0, lastSuccess: 0, disabledUntil: 0 };
-  if (ok) {
-    entry.consecutiveFailures = 0;
-    entry.lastSuccess = now;
-    entry.disabledUntil = 0;
-  } else {
-    entry.consecutiveFailures = (entry.consecutiveFailures || 0) + 1;
-    // Backoff: after 3 consecutive failures, disable for 6 hours; after 5, disable for 24 hours
-    if (entry.consecutiveFailures === 3) {
-      entry.disabledUntil = now + 6 * 60 * 60 * 1000;
-    } else if (entry.consecutiveFailures >= 5) {
-      entry.disabledUntil = now + 24 * 60 * 60 * 1000;
-    }
-  }
-  feedHealth[url] = entry;
-}
-
-function shouldSkipFeed(url) {
-  const entry = feedHealth[url];
-  if (!entry) return false;
-  return entry.disabledUntil && Date.now() < entry.disabledUntil;
-}
+// (Feed health tracking removed)
 
 // Fetch RSS with retry and fallback to parser.parseURL
 async function fetchFeedWithRetry(feedUrl, retries = 2) {
@@ -156,8 +118,7 @@ async function fetchFeedWithRetry(feedUrl, retries = 2) {
       if (!response.data || String(response.data).length < 100) {
         throw new Error('Empty or too-small RSS response');
       }
-      const feed = await parser.parseString(response.data);
-      markFeedResult(feedUrl, true);
+  const feed = await parser.parseString(response.data);
       return feed.items || [];
     } catch (e) {
       lastErr = e;
@@ -167,7 +128,6 @@ async function fetchFeedWithRetry(feedUrl, retries = 2) {
       try {
         const feed = await parser.parseURL(feedUrl);
         if (feed && feed.items && feed.items.length) {
-          markFeedResult(feedUrl, true);
           return feed.items;
         }
         throw new Error('parseURL returned no items');
@@ -179,92 +139,9 @@ async function fetchFeedWithRetry(feedUrl, retries = 2) {
     }
   }
   console.error(`❌ All attempts failed for feed: ${feedUrl} - ${lastErr ? lastErr.message : 'unknown error'}`);
-  markFeedResult(feedUrl, false);
   return [];
 }
-
-// Lightweight direct checker (single attempt) for diagnostics; does not update health
-async function checkFeedOnce(feedUrl) {
-  const start = Date.now();
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-    'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
-    'Accept-Language': 'en-US,en;q=0.9'
-  };
-  try {
-    const res = await axios.get(feedUrl, { headers, timeout: 12000, maxRedirects: 5, validateStatus: s => s < 600 });
-    const latency = Date.now() - start;
-    if (res.status >= 400) {
-      return { url: feedUrl, ok: false, status: res.status, latency, error: `HTTP ${res.status}` };
-    }
-    if (!res.data || String(res.data).length < 80) {
-      return { url: feedUrl, ok: false, status: res.status, latency, error: 'Empty/short body' };
-    }
-    try {
-      const feed = await parser.parseString(res.data);
-      const items = feed.items || [];
-      if (!items.length) {
-        return { url: feedUrl, ok: false, status: res.status, latency, error: 'Parsed but no items' };
-      }
-      // Compute most recent pub date
-      let latest = null;
-      for (const it of items) {
-        const d = new Date(it.isoDate || it.pubDate || it.published || it.date || 0);
-        if (!isNaN(d) && (!latest || d > latest)) latest = d;
-      }
-      return { url: feedUrl, ok: true, status: res.status, latency, items: items.length, latestPub: latest ? latest.toISOString() : null };
-    } catch (parseErr) {
-      return { url: feedUrl, ok: false, status: res.status, latency, error: 'Parse error: ' + parseErr.message };
-    }
-  } catch (err) {
-    const latency = Date.now() - start;
-    const status = err.response?.status;
-    let reason = err.code || err.message;
-    if (status) reason = `HTTP ${status}: ${reason}`;
-    return { url: feedUrl, ok: false, status: status || null, latency, error: reason };
-  }
-}
-
-async function diagnoseFeeds() {
-  console.log('🔍 Running RSS feed diagnostics...');
-  const results = [];
-  for (const url of rssFeeds) {
-    if (shouldSkipFeed(url)) {
-      console.log(`⏭️  Skipping (temporarily disabled): ${url}`);
-      continue;
-    }
-    const r = await checkFeedOnce(url);
-    results.push(r);
-    if (r.ok) {
-      console.log(`✅ OK (${r.items} items, latest: ${r.latestPub || 'n/a'}, ${r.latency}ms) ${url}`);
-    } else {
-      console.log(`❌ FAIL (${r.error}, ${r.latency}ms) ${url}`);
-    }
-    // Small delay to avoid hammering
-    await new Promise(res => setTimeout(res, 300));
-  }
-  const diagFile = 'feed_diagnostics.json';
-  try {
-    fs.writeFileSync(diagFile, JSON.stringify({ timestamp: new Date().toISOString(), results }, null, 2));
-    console.log(`📝 Diagnostics saved to ${diagFile}`);
-  } catch (e) {
-    console.warn('[WARN] Could not save diagnostics file:', e.message);
-  }
-  // Summary
-  const ok = results.filter(r => r.ok).length;
-  const fail = results.filter(r => !r.ok).length;
-  console.log(`
-Summary: ${ok} OK, ${fail} failing.`);
-  if (fail) {
-    const topReasons = {}; // reason -> count
-    for (const r of results.filter(r => !r.ok)) {
-      const key = (r.error || 'unknown').split(':')[0];
-      topReasons[key] = (topReasons[key] || 0) + 1;
-    }
-    console.log('Top failure reasons:', topReasons);
-  }
-  console.log('Done.');
-}
+// (Diagnostics feature removed)
 
 async function extractArticleContent(url) {
   try {
@@ -657,6 +534,8 @@ async function postTweet(text, media) {
 // Track posted article links persistently
 const POSTED_LINKS_FILE = 'posted_links.json';
 let postedLinks = new Set();
+let postedLinksArray = []; // preserve order for diversity calculations
+// posted_history.json feature removed
 
 // Load posted links from file
 function loadPostedLinks() {
@@ -664,12 +543,13 @@ function loadPostedLinks() {
     if (fs.existsSync(POSTED_LINKS_FILE)) {
       const data = fs.readFileSync(POSTED_LINKS_FILE, 'utf-8');
       const arr = JSON.parse(data);
-      postedLinks = new Set(arr);
+  postedLinksArray = Array.isArray(arr) ? arr : [];
+  postedLinks = new Set(postedLinksArray);
 
       // Clean old links (keep only last 1000 to avoid memory issues)
       if (postedLinks.size > 1000) {
-        const linksArray = Array.from(postedLinks);
-        postedLinks = new Set(linksArray.slice(-1000));
+  postedLinksArray = postedLinksArray.slice(-1000);
+  postedLinks = new Set(postedLinksArray);
         savePostedLinks();
       }
 
@@ -683,11 +563,53 @@ function loadPostedLinks() {
 // Save posted links to file
 function savePostedLinks() {
   try {
-    fs.writeFileSync(POSTED_LINKS_FILE, JSON.stringify(Array.from(postedLinks), null, 2));
+    // Ensure array reflects current set, preserving order (append-only pattern)
+    // Remove any items no longer in set (should not normally happen)
+    postedLinksArray = postedLinksArray.filter(l => postedLinks.has(l));
+    fs.writeFileSync(POSTED_LINKS_FILE, JSON.stringify(postedLinksArray, null, 2));
     console.log(`[DEBUG] Saved ${postedLinks.size} posted links to file.`);
   } catch (err) {
     console.error('[DEBUG] Failed to save posted links:', err.message);
   }
+}
+
+function normalizeDomain(host) {
+  if (!host) return host;
+  host = host.toLowerCase();
+  if (host.startsWith('www.')) host = host.slice(4);
+  // Collapse common multi-subdomains
+  if (host.endsWith('.indiatimes.com')) return 'indiatimes.com';
+  if (host.endsWith('.thehindu.com')) return 'thehindu.com';
+  if (host.endsWith('.indianexpress.com')) return 'indianexpress.com';
+  return host;
+}
+
+// Diminishing returns now only applies within current run (no persistence)
+function getDomainCountsLastWindow() { return {}; }
+
+function getRecentDomainCounts(lookback = DIVERSITY_LOOKBACK) {
+  const counts = {};
+  if (!postedLinksArray || !postedLinksArray.length) return counts;
+  const sliceArr = postedLinksArray.slice(-lookback);
+  for (const link of sliceArr) {
+    try {
+      const u = new URL(link);
+      const d = normalizeDomain(u.hostname);
+      counts[d] = (counts[d] || 0) + 1;
+    } catch (_) { /* ignore */ }
+  }
+  return counts;
+}
+
+function getAllDomainFrequencies() {
+  const counts = {};
+  for (const link of postedLinksArray) {
+    try {
+      const d = normalizeDomain(new URL(link).hostname);
+      counts[d] = (counts[d] || 0) + 1;
+    } catch(_) { /* ignore */ }
+  }
+  return counts;
 }
 
 async function processOneTweet() {
@@ -701,11 +623,6 @@ async function processOneTweet() {
     debugLog(`Processing ${rssFeeds.length} RSS feeds`);
     for (const feedUrl of rssFeeds) {
       try {
-        if (shouldSkipFeed(feedUrl)) {
-          debugLog(`Skipping disabled feed for now: ${feedUrl}`);
-          continue;
-        }
-
         debugLog(`Fetching feed: ${feedUrl}`);
         debugger; // Breakpoint 2: Before each feed fetch
 
@@ -741,6 +658,8 @@ async function processOneTweet() {
 
     // Score all articles for general news, sort by score descending
     let scoredArticles = [];
+  const recentDomainCounts = DIVERSITY_ENABLED ? getRecentDomainCounts() : {};
+  const diminishingCounts = DIMINISHING_ENABLED ? getDomainCountsLastWindow() : {};
     for (const item of allArticles) {
       debugLog(`Processing article: ${item.title}`);
       debugger; // Breakpoint 4: Before processing each article
@@ -837,8 +756,33 @@ async function processOneTweet() {
         }
       }
       // Text-only articles get no media boost
-
-      scoredArticles.push({ item, score, media });
+      let diversityPenalty = 0;
+      let diminishingPenalty = 0;
+      if (DIVERSITY_ENABLED) {
+        try {
+          const host = item.link ? normalizeDomain(new URL(item.link).hostname) : null;
+          if (host) {
+            const pastCount = recentDomainCounts[host] || 0;
+            if (pastCount > 0) {
+              diversityPenalty = Math.log(1 + pastCount) * DIVERSITY_PENALTY_WEIGHT;
+              score -= diversityPenalty;
+            }
+          }
+        } catch (_) { /* ignore */ }
+      }
+      if (DIMINISHING_ENABLED) {
+        try {
+          const host = item.link ? normalizeDomain(new URL(item.link).hostname) : null;
+          if (host) {
+            const recentCount = diminishingCounts[host] || 0;
+            if (recentCount > 0) {
+              diminishingPenalty = Math.log(1 + recentCount) * DIMINISHING_WEIGHT;
+              score -= diminishingPenalty;
+            }
+          }
+        } catch (_) { /* ignore */ }
+      }
+      scoredArticles.push({ item, score, media, diversityPenalty, diminishingPenalty });
     }
 
     // Sort by score descending, then by media type priority (video > image > text-only)
@@ -863,51 +807,103 @@ async function processOneTweet() {
     // Show top 3 articles with their scores for debugging
     console.log(`[DEBUG] Top articles by priority:`);
     for (let i = 0; i < Math.min(5, scoredArticles.length); i++) {
-      const { item, score, media } = scoredArticles[i];
+      const { item, score, media, diversityPenalty, diminishingPenalty } = scoredArticles[i];
       const mediaInfo = media ? `${media.type}` : 'text-only';
-      console.log(`[DEBUG] ${i + 1}. Score: ${score} | Media: ${mediaInfo} | "${item.title.substring(0, 60)}..."`);
+      const parts = [`${i + 1}. Score: ${score.toFixed(2)}`];
+      if (DIVERSITY_ENABLED) parts.push(`divPenalty:${diversityPenalty.toFixed(2)}`);
+      if (DIMINISHING_ENABLED) parts.push(`dimPenalty:${diminishingPenalty.toFixed(2)}`);
+      console.log(`[DEBUG] ${parts.join(' ')} | Media: ${mediaInfo} | "${item.title.substring(0, 60)}..."`);
     }
 
     // Try each article in order of priority, only tweet if Gemini summary is available
-    for (let i = 0; i < Math.min(scoredArticles.length, 5); i++) {
-      const { item, score, media } = scoredArticles[i];
-      const link = item.link || item.guid;
-
-      if (!link || postedLinks.has(link)) {
-        console.log(`[DEBUG] Skipping already posted article: ${item.title}`);
-        continue;
+    if (BALANCED_SELECTION) {
+      console.log('[DEBUG] Using balanced domain selection strategy');
+      // Build best article per domain
+      const bestPerDomain = {};
+      for (const entry of scoredArticles) {
+        const link = entry.item.link || entry.item.guid;
+        if (!link) continue;
+        let domain;
+        try { domain = normalizeDomain(new URL(link).hostname); } catch(_) { continue; }
+        if (!bestPerDomain[domain] || entry.score > bestPerDomain[domain].score) {
+          bestPerDomain[domain] = entry;
+        }
       }
-
-      let content = item['content:encoded'] || item.content;
-      if (!content || content.length < 300) {
-        content = await extractArticleContent(item.link);
+      const domainFreq = getAllDomainFrequencies();
+      const reps = Object.keys(bestPerDomain).map(d => ({ domain: d, ...bestPerDomain[d], freq: domainFreq[d] || 0 }));
+      if (!reps.length) {
+        console.log('[DEBUG] No representatives found, aborting');
+        return false;
       }
-      if (!content || content.length < 300) continue;
-
-      let summary = null;
-      try {
-        console.log(`[DEBUG] Generating Gemini summary for article ${i + 1} (score: ${score}, media: ${media ? media.type : 'none'})`);
-        summary = await generateStrictLengthSummary(content);
-      } catch (err) {
-        console.error(`[ERROR] Failed to generate summary: ${err.message}`);
-        continue; // Skip this article if Gemini summary fails
+      // Find minimum frequency among domains
+      const minFreq = Math.min(...reps.map(r => r.freq));
+      // Filter reps with min frequency
+      let candidates = reps.filter(r => r.freq === minFreq);
+      // Sort candidates by score desc
+      candidates.sort((a,b)=> b.score - a.score);
+      for (let attempt = 0; attempt < candidates.length; attempt++) {
+        const { item, score, media, domain } = candidates[attempt];
+        const link = item.link || item.guid;
+        if (!link || postedLinks.has(link)) continue;
+        let content = item['content:encoded'] || item.content;
+        if (!content || content.length < 300) {
+          content = await extractArticleContent(item.link);
+        }
+        if (!content || content.length < 300) continue;
+        let summary = null;
+        try {
+          console.log(`[DEBUG] (Balanced) Generating Gemini summary for domain ${domain} (score: ${score}, freq: ${domainFreq[domain]||0})`);
+          summary = await generateStrictLengthSummary(content);
+        } catch (err) {
+          console.error('[ERROR] Summary failed, trying next domain candidate:', err.message);
+          continue;
+        }
+        if (!summary) continue;
+        console.log(`\n📌 Posting (balanced) domain=${domain} score=${score.toFixed(2)} freq=${domainFreq[domain]||0}: ${item.title}`);
+        console.log(`📝 Summary: ${summary}`);
+        console.log(`📏 Length: ${summary.length}/280`);
+        if (media) console.log(`🖼️ Media: ${media.type} - ${media.url}`);
+        const success = await postTweet(summary, media);
+        if (success) {
+          postedLinks.add(link);
+          postedLinksArray.push(link);
+          savePostedLinks();
+          return true;
+        }
       }
-
-      if (!summary) continue;
-
-      // Post the news
-      console.log(`\n📌 Posting article (score: ${score}): ${item.title}`);
-      console.log(`📝 Summary: ${summary}`);
-      console.log(`📏 Length: ${summary.length}/280`);
-      if (media) {
-        console.log(`🖼️ Media: ${media.type} - ${media.url}`);
-      }
-
-      const success = await postTweet(summary, media);
-      if (success) {
-        postedLinks.add(link);
-        savePostedLinks();
-        return true;
+    } else {
+      for (let i = 0; i < Math.min(scoredArticles.length, 5); i++) {
+        const { item, score, media } = scoredArticles[i];
+        const link = item.link || item.guid;
+        if (!link || postedLinks.has(link)) {
+          console.log(`[DEBUG] Skipping already posted article: ${item.title}`);
+          continue;
+        }
+        let content = item['content:encoded'] || item.content;
+        if (!content || content.length < 300) {
+          content = await extractArticleContent(item.link);
+        }
+        if (!content || content.length < 300) continue;
+        let summary = null;
+        try {
+          console.log(`[DEBUG] Generating Gemini summary for article ${i + 1} (score: ${score}, media: ${media ? media.type : 'none'})`);
+          summary = await generateStrictLengthSummary(content);
+        } catch (err) {
+          console.error(`[ERROR] Failed to generate summary: ${err.message}`);
+          continue; // Skip this article if Gemini summary fails
+        }
+        if (!summary) continue;
+        console.log(`\n📌 Posting article (score: ${score}): ${item.title}`);
+        console.log(`📝 Summary: ${summary}`);
+        console.log(`📏 Length: ${summary.length}/280`);
+        if (media) console.log(`🖼️ Media: ${media.type} - ${media.url}`);
+        const success = await postTweet(summary, media);
+        if (success) {
+          postedLinks.add(link);
+          postedLinksArray.push(link);
+          savePostedLinks();
+          return true;
+        }
       }
     }
 
@@ -934,15 +930,8 @@ async function processUntilTweetPosted(maxAttempts = 3) {
 }
 
 (async () => {
-  if (process.argv.includes('--diagnose-feeds')) {
-    loadFeedHealth();
-    await diagnoseFeeds();
-    return; // Exit after diagnostics
-  }
   console.log("🚀 Starting scheduled summarizer...");
-  loadFeedHealth();
   loadPostedLinks();
   await processUntilTweetPosted(3);
-  saveFeedHealth();
   console.log("🏁 Finished");
 })();
