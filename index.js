@@ -25,11 +25,14 @@ const DRY_RUN = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true';
 const DIVERSITY_ENABLED = process.env.DIVERSITY_ENABLED === '1' || process.env.DIVERSITY_ENABLED === 'true';
 const DIVERSITY_PENALTY_WEIGHT = parseFloat(process.env.DIVERSITY_PENALTY_WEIGHT || '1.5');
 const DIVERSITY_LOOKBACK = parseInt(process.env.DIVERSITY_LOOKBACK || '80', 10); // how many past links to consider
-// Per-feed diminishing returns (24h rolling) toggle
-const DIMINISHING_ENABLED = process.env.PER_FEED_DIMINISHING === '1' || process.env.PER_FEED_DIMINISHING === 'true';
-const DIMINISHING_WEIGHT = parseFloat(process.env.PER_FEED_WEIGHT || '1');
-const DIMINISHING_WINDOW_HOURS = parseInt(process.env.PER_FEED_WINDOW_HOURS || '24', 10);
 const BALANCED_SELECTION = process.env.BALANCED_SELECTION === '1' || process.env.BALANCED_SELECTION === 'true';
+// Additional anti-dominance controls
+const MAX_DOMAIN_SHARE = parseFloat(process.env.MAX_DOMAIN_SHARE || '0'); // 0 disables (e.g. 0.3 for 30%)
+const DOMAIN_SHARE_LOOKBACK = parseInt(process.env.DOMAIN_SHARE_LOOKBACK || '150', 10); // posts inspected for share
+const NO_CONSECUTIVE_DOMAIN = process.env.NO_CONSECUTIVE_DOMAIN === '1' || process.env.NO_CONSECUTIVE_DOMAIN === 'true';
+const MIN_UNIQUE_DOMAINS_WINDOW = parseInt(process.env.MIN_UNIQUE_DOMAINS_WINDOW || '0', 10); // if >0 and unique < value, enforce new domain
+// Prevent two tweets in a row from the same exact RSS feed URL (even if domain differs across feeds)
+const NO_CONSECUTIVE_FEED = process.env.NO_CONSECUTIVE_FEED === '1' || process.env.NO_CONSECUTIVE_FEED === 'true';
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -536,6 +539,41 @@ const POSTED_LINKS_FILE = 'posted_links.json';
 let postedLinks = new Set();
 let postedLinksArray = []; // preserve order for diversity calculations
 // posted_history.json feature removed
+// Track last feed source for NO_CONSECUTIVE_FEED feature (configurable)
+// Set env LAST_FEED_FILE to override. Default changed from last_feed.json to last_feed_state.json.
+const LAST_FEED_FILE = process.env.LAST_FEED_FILE || 'last_feed_state.json';
+const LEGACY_LAST_FEED_FILE = 'last_feed.json';
+let lastFeedSource = null;
+
+function loadLastFeed() {
+  try {
+    let fileToUse = null;
+    if (fs.existsSync(LAST_FEED_FILE)) {
+      fileToUse = LAST_FEED_FILE;
+    } else if (fs.existsSync(LEGACY_LAST_FEED_FILE)) { // backward compatibility
+      fileToUse = LEGACY_LAST_FEED_FILE;
+    }
+    if (fileToUse) {
+      const data = JSON.parse(fs.readFileSync(fileToUse, 'utf-8'));
+      if (data && typeof data.lastFeed === 'string') {
+        lastFeedSource = data.lastFeed;
+        console.log(`[DEBUG] Loaded last feed source (${fileToUse}): ${lastFeedSource}`);
+      }
+    }
+  } catch (e) {
+    console.warn('[WARN] Could not load last feed source:', e.message);
+  }
+}
+
+function saveLastFeed(feedUrl) {
+  try {
+    lastFeedSource = feedUrl;
+    fs.writeFileSync(LAST_FEED_FILE, JSON.stringify({ lastFeed: feedUrl, savedAt: new Date().toISOString() }, null, 2));
+    console.log(`[DEBUG] Saved last feed source to ${LAST_FEED_FILE}: ${feedUrl}`);
+  } catch (e) {
+    console.warn('[WARN] Could not save last feed source:', e.message);
+  }
+}
 
 // Load posted links from file
 function loadPostedLinks() {
@@ -584,8 +622,7 @@ function normalizeDomain(host) {
   return host;
 }
 
-// Diminishing returns now only applies within current run (no persistence)
-function getDomainCountsLastWindow() { return {}; }
+// (diminishing returns feature removed)
 
 function getRecentDomainCounts(lookback = DIVERSITY_LOOKBACK) {
   const counts = {};
@@ -612,10 +649,69 @@ function getAllDomainFrequencies() {
   return counts;
 }
 
+function getDomainStatsForLookback(lookback = DOMAIN_SHARE_LOOKBACK) {
+  const counts = {};
+  const slice = postedLinksArray.slice(-lookback);
+  for (const link of slice) {
+    try {
+      const d = normalizeDomain(new URL(link).hostname);
+      counts[d] = (counts[d] || 0) + 1;
+    } catch(_) { /* ignore */ }
+  }
+  return { counts, total: slice.length };
+}
+
+function buildRecentWindowDomainSet(windowSize = 10) {
+  if (windowSize <= 0) return new Set();
+  const slice = postedLinksArray.slice(-windowSize);
+  const s = new Set();
+  for (const link of slice) {
+    try { s.add(normalizeDomain(new URL(link).hostname)); } catch(_) {}
+  }
+  return s;
+}
+
+function filterCandidatesByDominance(candidates) {
+  if (!candidates.length) return candidates;
+  const { counts, total } = getDomainStatsForLookback();
+  const lastDomain = postedLinksArray.length ? normalizeDomain(new URL(postedLinksArray[postedLinksArray.length - 1]).hostname) : null;
+  const recentSet = buildRecentWindowDomainSet(MIN_UNIQUE_DOMAINS_WINDOW > 0 ? MIN_UNIQUE_DOMAINS_WINDOW : 0);
+  const needNewDomain = MIN_UNIQUE_DOMAINS_WINDOW > 0 && recentSet.size < MIN_UNIQUE_DOMAINS_WINDOW;
+  let filtered = candidates.filter(c => {
+    const d = c.domain;
+    const feedSrc = c.item && c.item._feedSource;
+    if (!d) return true;
+    if (NO_CONSECUTIVE_DOMAIN && lastDomain && d === lastDomain) return false;
+    if (NO_CONSECUTIVE_FEED && lastFeedSource && feedSrc && feedSrc === lastFeedSource) return false;
+    if (needNewDomain && recentSet.has(d)) return false;
+    if (MAX_DOMAIN_SHARE > 0 && total > 0) {
+      const curShare = (counts[d] || 0) / total;
+      if (curShare > MAX_DOMAIN_SHARE) return false;
+    }
+    return true;
+  });
+  if (!filtered.length) {
+    // fallback: relax uniqueness, then share, then consecutive
+    filtered = candidates.filter(c => {
+      const d = c.domain;
+      const feedSrc = c.item && c.item._feedSource;
+      if (!d) return true;
+      if (MAX_DOMAIN_SHARE > 0 && total > 0) {
+        const curShare = (counts[d] || 0) / total;
+        if (curShare > MAX_DOMAIN_SHARE) return false;
+      }
+      if (NO_CONSECUTIVE_DOMAIN && lastDomain && d === lastDomain) return false;
+      if (NO_CONSECUTIVE_FEED && lastFeedSource && feedSrc && feedSrc === lastFeedSource) return false;
+      return true;
+    });
+  }
+  if (!filtered.length) filtered = candidates; // absolute fallback
+  return filtered;
+}
+
 async function processOneTweet() {
   try {
-    debugLog('Starting processOneTweet function');
-    debugger; // Breakpoint 1: Function start
+  debugLog('Starting processOneTweet function');
 
 
     let allArticles = [];
@@ -623,12 +719,12 @@ async function processOneTweet() {
     debugLog(`Processing ${rssFeeds.length} RSS feeds`);
     for (const feedUrl of rssFeeds) {
       try {
-        debugLog(`Fetching feed: ${feedUrl}`);
-        debugger; // Breakpoint 2: Before each feed fetch
+  debugLog(`Fetching feed: ${feedUrl}`);
 
-        const items = await fetchFeedWithRetry(feedUrl, 2);
-        debugLog(`Found ${items.length} items in feed: ${feedUrl}`);
-        allArticles.push(...items.slice(0, 5));
+  const items = await fetchFeedWithRetry(feedUrl, 2);
+  debugLog(`Found ${items.length} items in feed: ${feedUrl}`);
+  // Annotate each item with its originating feed for feed-level diversity rules
+  allArticles.push(...items.slice(0, 5).map(it => ({ ...it, _feedSource: feedUrl })));
         
         // Minimal delay for GitHub Actions (reduce from 1500ms to 300ms)
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -653,16 +749,13 @@ async function processOneTweet() {
       return false;
     }
 
-    debugLog(`Total articles collected in last 2 hours: ${allArticles.length}`);
-    debugger; // Breakpoint 3: Before article scoring
+  debugLog(`Total articles collected in last 2 hours: ${allArticles.length}`);
 
     // Score all articles for general news, sort by score descending
     let scoredArticles = [];
   const recentDomainCounts = DIVERSITY_ENABLED ? getRecentDomainCounts() : {};
-  const diminishingCounts = DIMINISHING_ENABLED ? getDomainCountsLastWindow() : {};
     for (const item of allArticles) {
-      debugLog(`Processing article: ${item.title}`);
-      debugger; // Breakpoint 4: Before processing each article
+  debugLog(`Processing article: ${item.title}`);
 
       let content = item['content:encoded'] || item.content;
       if (!content || content.length < 300) {
@@ -756,8 +849,7 @@ async function processOneTweet() {
         }
       }
       // Text-only articles get no media boost
-      let diversityPenalty = 0;
-      let diminishingPenalty = 0;
+  let diversityPenalty = 0;
       if (DIVERSITY_ENABLED) {
         try {
           const host = item.link ? normalizeDomain(new URL(item.link).hostname) : null;
@@ -770,19 +862,10 @@ async function processOneTweet() {
           }
         } catch (_) { /* ignore */ }
       }
-      if (DIMINISHING_ENABLED) {
-        try {
-          const host = item.link ? normalizeDomain(new URL(item.link).hostname) : null;
-          if (host) {
-            const recentCount = diminishingCounts[host] || 0;
-            if (recentCount > 0) {
-              diminishingPenalty = Math.log(1 + recentCount) * DIMINISHING_WEIGHT;
-              score -= diminishingPenalty;
-            }
-          }
-        } catch (_) { /* ignore */ }
-      }
-      scoredArticles.push({ item, score, media, diversityPenalty, diminishingPenalty });
+  // attach normalized domain for later selection filtering
+  let domain = null;
+  try { domain = item.link ? normalizeDomain(new URL(item.link).hostname) : null; } catch(_) {}
+  scoredArticles.push({ item, score, media, diversityPenalty, domain });
     }
 
     // Sort by score descending, then by media type priority (video > image > text-only)
@@ -807,11 +890,10 @@ async function processOneTweet() {
     // Show top 3 articles with their scores for debugging
     console.log(`[DEBUG] Top articles by priority:`);
     for (let i = 0; i < Math.min(5, scoredArticles.length); i++) {
-      const { item, score, media, diversityPenalty, diminishingPenalty } = scoredArticles[i];
+  const { item, score, media, diversityPenalty } = scoredArticles[i];
       const mediaInfo = media ? `${media.type}` : 'text-only';
       const parts = [`${i + 1}. Score: ${score.toFixed(2)}`];
       if (DIVERSITY_ENABLED) parts.push(`divPenalty:${diversityPenalty.toFixed(2)}`);
-      if (DIMINISHING_ENABLED) parts.push(`dimPenalty:${diminishingPenalty.toFixed(2)}`);
       console.log(`[DEBUG] ${parts.join(' ')} | Media: ${mediaInfo} | "${item.title.substring(0, 60)}..."`);
     }
 
@@ -823,8 +905,8 @@ async function processOneTweet() {
       for (const entry of scoredArticles) {
         const link = entry.item.link || entry.item.guid;
         if (!link) continue;
-        let domain;
-        try { domain = normalizeDomain(new URL(link).hostname); } catch(_) { continue; }
+        const domain = entry.domain;
+        if (!domain) continue;
         if (!bestPerDomain[domain] || entry.score > bestPerDomain[domain].score) {
           bestPerDomain[domain] = entry;
         }
@@ -839,6 +921,7 @@ async function processOneTweet() {
       const minFreq = Math.min(...reps.map(r => r.freq));
       // Filter reps with min frequency
       let candidates = reps.filter(r => r.freq === minFreq);
+      candidates = filterCandidatesByDominance(candidates);
       // Sort candidates by score desc
       candidates.sort((a,b)=> b.score - a.score);
       for (let attempt = 0; attempt < candidates.length; attempt++) {
@@ -868,12 +951,16 @@ async function processOneTweet() {
           postedLinks.add(link);
           postedLinksArray.push(link);
           savePostedLinks();
+          if (NO_CONSECUTIVE_FEED && item._feedSource) saveLastFeed(item._feedSource);
           return true;
         }
       }
     } else {
-      for (let i = 0; i < Math.min(scoredArticles.length, 5); i++) {
-        const { item, score, media } = scoredArticles[i];
+      // Apply dominance filters to top slice first
+      let linearCandidates = scoredArticles.slice(0, 12); // wider pool for filtering
+      linearCandidates = filterCandidatesByDominance(linearCandidates);
+      for (let i = 0; i < Math.min(linearCandidates.length, 8); i++) {
+        const { item, score, media } = linearCandidates[i];
         const link = item.link || item.guid;
         if (!link || postedLinks.has(link)) {
           console.log(`[DEBUG] Skipping already posted article: ${item.title}`);
@@ -902,6 +989,7 @@ async function processOneTweet() {
           postedLinks.add(link);
           postedLinksArray.push(link);
           savePostedLinks();
+          if (NO_CONSECUTIVE_FEED && item._feedSource) saveLastFeed(item._feedSource);
           return true;
         }
       }
@@ -932,6 +1020,7 @@ async function processUntilTweetPosted(maxAttempts = 3) {
 (async () => {
   console.log("🚀 Starting scheduled summarizer...");
   loadPostedLinks();
+  if (NO_CONSECUTIVE_FEED) loadLastFeed();
   await processUntilTweetPosted(3);
   console.log("🏁 Finished");
 })();
