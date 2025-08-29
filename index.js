@@ -33,6 +33,10 @@ const NO_CONSECUTIVE_DOMAIN = process.env.NO_CONSECUTIVE_DOMAIN === '1' || proce
 const MIN_UNIQUE_DOMAINS_WINDOW = parseInt(process.env.MIN_UNIQUE_DOMAINS_WINDOW || '0', 10); // if >0 and unique < value, enforce new domain
 // Prevent two tweets in a row from the same exact RSS feed URL (even if domain differs across feeds)
 const NO_CONSECUTIVE_FEED = process.env.NO_CONSECUTIVE_FEED === '1' || process.env.NO_CONSECUTIVE_FEED === 'true';
+// Strict round-robin mode: stateless rotation (time-slot based) if enabled
+const ROUND_ROBIN_FEEDS = process.env.ROUND_ROBIN_FEEDS === '1' || process.env.ROUND_ROBIN_FEEDS === 'true';
+// Minutes per rotation step (default 120 = every 2 hours). Each slot picks next feed deterministically.
+const ROTATION_INTERVAL_MINUTES = parseInt(process.env.ROTATION_INTERVAL_MINUTES || '120', 10);
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -543,37 +547,11 @@ let postedLinksArray = []; // preserve order for diversity calculations
 // Set env LAST_FEED_FILE to override. Default changed from last_feed.json to last_feed_state.json.
 const LAST_FEED_FILE = process.env.LAST_FEED_FILE || 'last_feed_state.json';
 const LEGACY_LAST_FEED_FILE = 'last_feed.json';
-let lastFeedSource = null;
+let lastFeedSource = null; // retained for NO_CONSECUTIVE_FEED logic only
 
-function loadLastFeed() {
-  try {
-    let fileToUse = null;
-    if (fs.existsSync(LAST_FEED_FILE)) {
-      fileToUse = LAST_FEED_FILE;
-    } else if (fs.existsSync(LEGACY_LAST_FEED_FILE)) { // backward compatibility
-      fileToUse = LEGACY_LAST_FEED_FILE;
-    }
-    if (fileToUse) {
-      const data = JSON.parse(fs.readFileSync(fileToUse, 'utf-8'));
-      if (data && typeof data.lastFeed === 'string') {
-        lastFeedSource = data.lastFeed;
-        console.log(`[DEBUG] Loaded last feed source (${fileToUse}): ${lastFeedSource}`);
-      }
-    }
-  } catch (e) {
-    console.warn('[WARN] Could not load last feed source:', e.message);
-  }
-}
-
-function saveLastFeed(feedUrl) {
-  try {
-    lastFeedSource = feedUrl;
-    fs.writeFileSync(LAST_FEED_FILE, JSON.stringify({ lastFeed: feedUrl, savedAt: new Date().toISOString() }, null, 2));
-    console.log(`[DEBUG] Saved last feed source to ${LAST_FEED_FILE}: ${feedUrl}`);
-  } catch (e) {
-    console.warn('[WARN] Could not save last feed source:', e.message);
-  }
-}
+// Deprecated persistence functions kept as no-ops for compatibility
+function loadLastFeed() { /* stateless mode: no file load */ }
+function saveLastFeed() { /* stateless mode: no file save */ }
 
 // Load posted links from file
 function loadPostedLinks() {
@@ -1003,10 +981,128 @@ async function processOneTweet() {
   }
 }
 
+// Stateless round-robin feed posting: select feed based on wall-clock slot
+async function processOneTweetRoundRobin() {
+  try {
+    if (!rssFeeds.length) {
+      console.log('⚠️ No feeds configured.');
+      return false;
+    }
+    // Determine base feed index by time slot (stateless)
+    const slot = Math.floor(Date.now() / (ROTATION_INTERVAL_MINUTES * 60 * 1000));
+    const startIndex = slot % rssFeeds.length;
+    console.log(`[RR] Computed time-slot ${slot}, starting at feed index ${startIndex}`);
+    // We'll attempt starting feed then fall through others if it yields nothing
+    for (let offset = 0; offset < rssFeeds.length; offset++) {
+      const feedIndex = (startIndex + offset) % rssFeeds.length;
+      const feedUrl = rssFeeds[feedIndex];
+      debugLog(`[RR] Attempting feed index ${feedIndex}: ${feedUrl}`);
+      let items = [];
+      try {
+        items = await fetchFeedWithRetry(feedUrl, 2);
+      } catch (e) {
+        console.warn(`[RR] Failed to fetch feed ${feedUrl}: ${e.message}`);
+        continue;
+      }
+      if (!items.length) continue;
+      // Limit items processed
+      items = items.slice(0, 8).map(it => ({ ...it, _feedSource: feedUrl }));
+      const now = new Date();
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      const freshItems = items.filter(it => {
+        let pubDate = it.isoDate || it.pubDate || it.published || it.date;
+        if (!pubDate) return false;
+        const d = new Date(pubDate);
+        return d > twoHoursAgo && d <= now;
+      });
+      if (!freshItems.length) {
+        debugLog(`[RR] No fresh items (<=2h) in feed ${feedUrl}`);
+        continue;
+      }
+      // Score within this single feed
+      const recentDomainCounts = DIVERSITY_ENABLED ? getRecentDomainCounts() : {};
+      const scored = [];
+      for (const item of freshItems) {
+        let content = item['content:encoded'] || item.content;
+        if (!content || content.length < 300) {
+          content = await extractArticleContent(item.link);
+        }
+        if (!content || content.length < 300) continue;
+        const rawMedia = extractMediaFromItem(item);
+        const media = rawMedia ? validateMediaUrl(rawMedia.url) : null;
+        const lowerContent = content.toLowerCase();
+        let score = 0;
+        // Minimal scoring: prefer presence of a few key signals + media
+        const quickKeywords = ['government','policy','economy','market','technology','environment','court','india','global'];
+        for (const kw of quickKeywords) if (lowerContent.includes(kw)) score += 1;
+        if (media) score += media.type === 'video' ? 5 : 3;
+        // Diversity penalty
+        if (DIVERSITY_ENABLED) {
+          try {
+            const host = item.link ? normalizeDomain(new URL(item.link).hostname) : null;
+            if (host) {
+              const pastCount = recentDomainCounts[host] || 0;
+              if (pastCount > 0) score -= Math.log(1 + pastCount) * DIVERSITY_PENALTY_WEIGHT;
+            }
+          } catch(_) {}
+        }
+        let domain = null;
+        try { domain = item.link ? normalizeDomain(new URL(item.link).hostname) : null; } catch(_) {}
+        scored.push({ item, score, media, domain });
+      }
+      if (!scored.length) {
+        debugLog(`[RR] No scored items for feed ${feedUrl}`);
+        continue;
+      }
+      scored.sort((a,b)=> b.score - a.score);
+      // Try candidates in descending score
+      for (const entry of scored.slice(0,5)) {
+        const { item, score, media } = entry;
+        const link = item.link || item.guid;
+        if (!link || postedLinks.has(link)) continue;
+        let content = item['content:encoded'] || item.content;
+        if (!content || content.length < 300) {
+          content = await extractArticleContent(item.link);
+        }
+        if (!content || content.length < 300) continue;
+        let summary = null;
+        try {
+          summary = await generateStrictLengthSummary(content);
+        } catch (e) {
+          console.warn(`[RR] Summary failed for an item: ${e.message}`);
+          continue;
+        }
+        if (!summary) continue;
+        console.log(`\n🔄 [Round-Robin] Posting from feed #${feedIndex + 1}/${rssFeeds.length}: ${feedUrl}`);
+        console.log(`📰 Title: ${item.title}`);
+        console.log(`⭐ Score: ${score.toFixed(2)}`);
+        console.log(`📝 Summary: ${summary}`);
+        console.log(`📏 Length: ${summary.length}/280`);
+        if (media) console.log(`🖼️ Media: ${media.type} - ${media.url}`);
+        const success = await postTweet(summary, media);
+        if (success) {
+          postedLinks.add(link);
+          postedLinksArray.push(link);
+          savePostedLinks();
+          // Save lastFeedSource only for NO_CONSECUTIVE_FEED logic (no persistence)
+          lastFeedSource = feedUrl;
+          return true;
+        }
+      }
+      // If we've reached here, this feed had items but none posted; try next feed
+    }
+    console.log('⚠️ Round-robin: no suitable article found across all feeds this cycle.');
+    return false;
+  } catch (err) {
+    console.error('❌ Error in processOneTweetRoundRobin:', err.message);
+    return false;
+  }
+}
+
 async function processUntilTweetPosted(maxAttempts = 3) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     console.log(`\n🌀 Overall Attempt ${attempt} to post tweet...`);
-    const success = await processOneTweet();
+  const success = ROUND_ROBIN_FEEDS ? await processOneTweetRoundRobin() : await processOneTweet();
     if (success) return;
     if (attempt < 3) {
       console.log("🔁 Retrying in 5 seconds...");
