@@ -37,6 +37,9 @@ const NO_CONSECUTIVE_FEED = process.env.NO_CONSECUTIVE_FEED === '1' || process.e
 const ROUND_ROBIN_FEEDS = process.env.ROUND_ROBIN_FEEDS === '1' || process.env.ROUND_ROBIN_FEEDS === 'true';
 // Minutes per rotation step (default 120 = every 2 hours). Each slot picks next feed deterministically.
 const ROTATION_INTERVAL_MINUTES = parseInt(process.env.ROTATION_INTERVAL_MINUTES || '120', 10);
+// Strict rotation: feed index = successful post count % feedCount, only that feed attempted.
+const STRICT_ROTATION = process.env.STRICT_ROTATION === '1' || process.env.STRICT_ROTATION === 'true';
+const STRICT_EXPANSION_WINDOWS = (process.env.STRICT_EXPANSION_WINDOWS || '2h,6h,24h').split(',');
 
 const twitterClient = new TwitterApi({
   appKey: process.env.X_API_KEY,
@@ -1099,10 +1102,125 @@ async function processOneTweetRoundRobin() {
   }
 }
 
+// Strict rotation: attempt ONLY the computed feed; expand freshness window if needed.
+async function processOneTweetStrictRotation() {
+  try {
+    if (!rssFeeds.length) {
+      console.log('⚠️ No feeds configured.');
+      return false;
+    }
+    const feedIndex = postedLinksArray.length % rssFeeds.length; // advance only after success
+    const feedUrl = rssFeeds[feedIndex];
+    console.log(`[STRICT] Target feed #${feedIndex + 1}/${rssFeeds.length}: ${feedUrl}`);
+    let items = [];
+    try {
+      items = await fetchFeedWithRetry(feedUrl, 2);
+    } catch (e) {
+      console.warn(`[STRICT] Failed to fetch feed: ${e.message}`);
+      return false; // do not advance
+    }
+    if (!items.length) {
+      console.log('[STRICT] No items in feed.');
+      return false;
+    }
+    // Work through expansion windows
+    for (const windowSpec of STRICT_EXPANSION_WINDOWS) {
+      const win = windowSpec.trim();
+      if (!win) continue;
+      const match = win.match(/^(\d+)([hm])$/i);
+      let hours = 2; // default
+      if (match) {
+        const val = parseInt(match[1], 10);
+        const unit = match[2].toLowerCase();
+        hours = unit === 'm' ? val / 60 : val;
+      }
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - hours * 60 * 60 * 1000);
+      let windowItems = items.slice(0, 15).map(it => ({ ...it, _feedSource: feedUrl })).filter(it => {
+        const pubDate = it.isoDate || it.pubDate || it.published || it.date;
+        if (!pubDate) return false;
+        const d = new Date(pubDate);
+        return d > cutoff && d <= now;
+      });
+      if (!windowItems.length) {
+        console.log(`[STRICT] No items within window ${win}. Expanding...`);
+        continue;
+      }
+      // Score within feed (reuse minimal scoring)
+      const recentDomainCounts = DIVERSITY_ENABLED ? getRecentDomainCounts() : {};
+      const scored = [];
+      for (const item of windowItems) {
+        let content = item['content:encoded'] || item.content;
+        if (!content || content.length < 300) {
+          content = await extractArticleContent(item.link);
+        }
+        if (!content || content.length < 300) continue;
+        const rawMedia = extractMediaFromItem(item);
+        const media = rawMedia ? validateMediaUrl(rawMedia.url) : null;
+        let score = 0;
+        const lower = (content || '').toLowerCase();
+        const quickKeywords = ['government','policy','economy','market','technology','environment','court','india','global'];
+        for (const kw of quickKeywords) if (lower.includes(kw)) score += 1;
+        if (media) score += media.type === 'video' ? 5 : 3;
+        if (DIVERSITY_ENABLED) {
+          try {
+            const host = item.link ? normalizeDomain(new URL(item.link).hostname) : null;
+            if (host) {
+              const past = recentDomainCounts[host] || 0;
+              if (past > 0) score -= Math.log(1 + past) * DIVERSITY_PENALTY_WEIGHT;
+            }
+          } catch(_) {}
+        }
+        scored.push({ item, score, media });
+      }
+      if (!scored.length) {
+        console.log(`[STRICT] No viable articles after content extraction in window ${win}.`);
+        continue;
+      }
+      scored.sort((a,b)=> b.score - a.score);
+      for (const { item, score, media } of scored.slice(0,5)) {
+        const link = item.link || item.guid;
+        if (!link || postedLinks.has(link)) continue;
+        let content = item['content:encoded'] || item.content;
+        if (!content || content.length < 300) content = await extractArticleContent(item.link);
+        if (!content || content.length < 300) continue;
+        let summary = null;
+        try {
+          summary = await generateStrictLengthSummary(content);
+        } catch (e) {
+          console.warn(`[STRICT] Summary failed: ${e.message}`);
+          continue;
+        }
+        if (!summary) continue;
+        console.log(`\n🎯 [Strict Rotation] Posting from feed #${feedIndex + 1}: ${feedUrl}`);
+        console.log(`📰 Title: ${item.title}`);
+        console.log(`⭐ Score: ${score.toFixed(2)}`);
+        console.log(`📝 Summary: ${summary}`);
+        console.log(`📏 Length: ${summary.length}/280`);
+        if (media) console.log(`🖼️ Media: ${media.type} - ${media.url}`);
+        const success = await postTweet(summary, media);
+        if (success) {
+          postedLinks.add(link);
+          postedLinksArray.push(link);
+          savePostedLinks();
+          lastFeedSource = feedUrl;
+          return true; // feedIndex advances next run via postedLinksArray length
+        }
+      }
+      console.log(`[STRICT] Could not post from window ${win}; trying next larger window.`);
+    }
+    console.log('[STRICT] All expansion windows exhausted; will retry same feed next run.');
+    return false;
+  } catch (err) {
+    console.error('❌ Error in processOneTweetStrictRotation:', err.message);
+    return false;
+  }
+}
+
 async function processUntilTweetPosted(maxAttempts = 3) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     console.log(`\n🌀 Overall Attempt ${attempt} to post tweet...`);
-  const success = ROUND_ROBIN_FEEDS ? await processOneTweetRoundRobin() : await processOneTweet();
+  const success = STRICT_ROTATION ? await processOneTweetStrictRotation() : (ROUND_ROBIN_FEEDS ? await processOneTweetRoundRobin() : await processOneTweet());
     if (success) return;
     if (attempt < 3) {
       console.log("🔁 Retrying in 5 seconds...");
