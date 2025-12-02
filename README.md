@@ -4,15 +4,15 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Tue Dec  2 10:27:17 UTC 2025
+Last updated: Tue Dec  2 12:51:29 UTC 2025
 
-1. https://indianexpress.com/article/india/bihar-assembly-new-speaker-prem-kumar-bridge-divide-10397814/
-2. https://economictimes.indiatimes.com/markets/expert-view/how-to-pick-winning-stocks-balancing-growth-vs-valuation-golden-thumbrule-with-anand-shah-ep-12/videoshow/125695213.cms
-3. https://www.thehindu.com/sci-tech/technology/trumps-push-for-more-ai-data-centers-faces-backlash-from-his-own-voters/article70347908.ece
-4. https://indianexpress.com/article/india/southern-command-conducts-successful-long-range-precision-launch-of-brahmos-missile-10397149/
-5. https://www.thehindu.com/sci-tech/science/why-does-india-need-bioremediation-explained/article70346747.ece
-6. https://www.thehindu.com/sci-tech/science/lunar-fission-nuclear-power-in-space-india-opportunities/article70342916.ece
-7. https://techcrunch.com/2025/12/01/nvidia-announces-new-open-ai-models-and-tools-for-autonomous-driving-research/
-8. https://timesofindia.indiatimes.com/world/us/kash-patel-threw-tantrums-during-charlie-kirk-investigation-didnt-leave-plane-without-fbi-jacket-report/articleshow/125703042.cms
-9. https://timesofindia.indiatimes.com/world/us/two-of-his-three-wives-were-immigrants-it-union-leaders-speech-viral-maga-says-indian-tech-cartel-openly-bullying-trump/articleshow/125700770.cms
-10. https://timesofindia.indiatimes.com/world/us/throw-her-the-hell-out-of-our-country-could-ilhan-omar-be-deported-for-marrying-her-brother/articleshow/125697306.cms
+1. https://timesofindia.indiatimes.com/world/us/they-lose-a-limb-bleed-out-megyn-kelly-says-she-wants-alleged-drug-traffickers-to-suffer-at-the-hands-of-trump-and-hegseth/articleshow/125717813.cms
+2. https://indianexpress.com/article/india/bihar-assembly-new-speaker-prem-kumar-bridge-divide-10397814/
+3. https://economictimes.indiatimes.com/markets/expert-view/how-to-pick-winning-stocks-balancing-growth-vs-valuation-golden-thumbrule-with-anand-shah-ep-12/videoshow/125695213.cms
+4. https://www.thehindu.com/sci-tech/technology/trumps-push-for-more-ai-data-centers-faces-backlash-from-his-own-voters/article70347908.ece
+5. https://indianexpress.com/article/india/southern-command-conducts-successful-long-range-precision-launch-of-brahmos-missile-10397149/
+6. https://www.thehindu.com/sci-tech/science/why-does-india-need-bioremediation-explained/article70346747.ece
+7. https://www.thehindu.com/sci-tech/science/lunar-fission-nuclear-power-in-space-india-opportunities/article70342916.ece
+8. https://techcrunch.com/2025/12/01/nvidia-announces-new-open-ai-models-and-tools-for-autonomous-driving-research/
+9. https://timesofindia.indiatimes.com/world/us/kash-patel-threw-tantrums-during-charlie-kirk-investigation-didnt-leave-plane-without-fbi-jacket-report/articleshow/125703042.cms
+10. https://timesofindia.indiatimes.com/world/us/two-of-his-three-wives-were-immigrants-it-union-leaders-speech-viral-maga-says-indian-tech-cartel-openly-bullying-trump/articleshow/125700770.cms
