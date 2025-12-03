@@ -4,15 +4,15 @@ This assistant automatically posts news updates to X (Twitter) every 2 hours.
 
 ## Recent Posted Articles
 
-Last updated: Tue Dec  2 22:19:58 UTC 2025
+Last updated: Wed Dec  3 01:50:30 UTC 2025
 
-1. https://timesofindia.indiatimes.com/world/us/maga-ally-pushes-to-end-dual-citizenship-not-realising-melania-and-barron-trump-would-be-caught-in-the-crossfire/articleshow/125727781.cms
-2. https://timesofindia.indiatimes.com/world/us/no-american-dream-when-h-1bs-can-come-ex-doge-advisor-hits-back-at-vivek-ramaswamy/articleshow/125724710.cms
-3. https://timesofindia.indiatimes.com/world/rest-of-world/watch-japans-pm-sanae-takaichi-quotes-famous-manga-and-anime-attack-on-titan/articleshow/125724137.cms
-4. https://timesofindia.indiatimes.com/world/us/hire-act-explained-indian-origin-lawmaker-proposes-doubling-h-1b-visas-is-it-possible/articleshow/125720990.cms
-5. https://timesofindia.indiatimes.com/world/us/dubai-is-the-only-place-indians-respect-the-law-andrew-tate-draws-flak-for-targeted-comment-on-social-media/articleshow/125718926.cms
-6. https://timesofindia.indiatimes.com/world/us/they-lose-a-limb-bleed-out-megyn-kelly-says-she-wants-alleged-drug-traffickers-to-suffer-at-the-hands-of-trump-and-hegseth/articleshow/125717813.cms
-7. https://indianexpress.com/article/india/bihar-assembly-new-speaker-prem-kumar-bridge-divide-10397814/
-8. https://economictimes.indiatimes.com/markets/expert-view/how-to-pick-winning-stocks-balancing-growth-vs-valuation-golden-thumbrule-with-anand-shah-ep-12/videoshow/125695213.cms
-9. https://www.thehindu.com/sci-tech/technology/trumps-push-for-more-ai-data-centers-faces-backlash-from-his-own-voters/article70347908.ece
-10. https://indianexpress.com/article/india/southern-command-conducts-successful-long-range-precision-launch-of-brahmos-missile-10397149/
+1. https://www.thehindu.com/news/cities/chennai/the-long-struggle-to-remove-british-military-officer-james-george-smith-neil-statue-from-mount-road-in-chennai/article70346139.ece
+2. https://timesofindia.indiatimes.com/world/us/maga-ally-pushes-to-end-dual-citizenship-not-realising-melania-and-barron-trump-would-be-caught-in-the-crossfire/articleshow/125727781.cms
+3. https://timesofindia.indiatimes.com/world/us/no-american-dream-when-h-1bs-can-come-ex-doge-advisor-hits-back-at-vivek-ramaswamy/articleshow/125724710.cms
+4. https://timesofindia.indiatimes.com/world/rest-of-world/watch-japans-pm-sanae-takaichi-quotes-famous-manga-and-anime-attack-on-titan/articleshow/125724137.cms
+5. https://timesofindia.indiatimes.com/world/us/hire-act-explained-indian-origin-lawmaker-proposes-doubling-h-1b-visas-is-it-possible/articleshow/125720990.cms
+6. https://timesofindia.indiatimes.com/world/us/dubai-is-the-only-place-indians-respect-the-law-andrew-tate-draws-flak-for-targeted-comment-on-social-media/articleshow/125718926.cms
+7. https://timesofindia.indiatimes.com/world/us/they-lose-a-limb-bleed-out-megyn-kelly-says-she-wants-alleged-drug-traffickers-to-suffer-at-the-hands-of-trump-and-hegseth/articleshow/125717813.cms
+8. https://indianexpress.com/article/india/bihar-assembly-new-speaker-prem-kumar-bridge-divide-10397814/
+9. https://economictimes.indiatimes.com/markets/expert-view/how-to-pick-winning-stocks-balancing-growth-vs-valuation-golden-thumbrule-with-anand-shah-ep-12/videoshow/125695213.cms
+10. https://www.thehindu.com/sci-tech/technology/trumps-push-for-more-ai-data-centers-faces-backlash-from-his-own-voters/article70347908.ece
