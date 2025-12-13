@@ -6,7 +6,7 @@ on:
   workflow_dispatch:       # Allow manual trigger
 
 permissions:
-  contents: write          # Allow the workflow to write to the repository
+  contents: read
 
 jobs:
   post-news:
@@ -35,66 +35,3 @@ jobs:
           X_API_SECRET: "${{ secrets.X_API_SECRET }}"
           X_ACCESS_TOKEN: "${{ secrets.X_ACCESS_TOKEN }}"
           X_ACCESS_SECRET: "${{ secrets.X_ACCESS_SECRET }}"
-          GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
-
-      - name: Display posted links summary
-        run: |
-          echo "## 📰 News Assistant Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f "posted_links.json" ]; then
-            TOTAL_LINKS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('posted_links.json', 'utf-8')).length)")
-            echo "**Total articles posted:** $TOTAL_LINKS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔗 Recent Posted Articles" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            node -e "
-              const fs = require('fs');
-              if (fs.existsSync('posted_links.json')) {
-                const links = JSON.parse(fs.readFileSync('posted_links.json', 'utf-8'));
-                const recent = links.slice(-5).reverse();
-                recent.forEach((link, i) => {
-                  console.log(\`\${i + 1}. \${link}\`);
-                });
-              }
-            " >> $GITHUB_STEP_SUMMARY
-          else
-            echo "**No articles posted yet**" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Commit and push posted links
-        run: |
-          git config --local user.email "anubhavgahlawatcool01@gmail.com"
-          git config --local user.name "Anubhav4813"
-          
-          # Update README with latest posted links
-          echo "# DailySnap - Automated News Assistant" > README_temp.md
-          echo "" >> README_temp.md
-          echo "This assistant automatically posts news updates to X (Twitter) every 2 hours." >> README_temp.md
-          echo "" >> README_temp.md
-          echo "## Recent Posted Articles" >> README_temp.md
-          echo "" >> README_temp.md
-          
-          if [ -f "posted_links.json" ]; then
-            echo "Last updated: $(date)" >> README_temp.md
-            echo "" >> README_temp.md
-            # Show last 10 posted links
-            node -e "
-              const fs = require('fs');
-              if (fs.existsSync('posted_links.json')) {
-                const links = JSON.parse(fs.readFileSync('posted_links.json', 'utf-8'));
-                const recent = links.slice(-10).reverse();
-                recent.forEach((link, i) => {
-                  console.log(\`\${i + 1}. \${link}\`);
-                });
-              }
-            " >> README_temp.md
-          else
-            echo "No links posted yet." >> README_temp.md
-          fi
-          
-          mv README_temp.md README.md
-          
-          git add posted_links.json README.md
-          git diff --staged --quiet || (git commit -m "Update posted links and README [$(date)]" && git push)
