@@ -237,13 +237,24 @@ async function extractArticleContent(url) {
   }
 }
 
-async function generateStrictLengthSummary(content) {
+async function generateStrictLengthSummary(content, retryCount = 0) {
   try {
+    // Prevent infinite recursion by allowing a maximum of 3 retries
+    if (retryCount >= 3) {
+      console.warn("[WARN] Max retries reached for summary generation.");
+      return null;
+    }
+
     const truncatedContent = content.substring(0, 10000);
     const prompt = {
       contents: [{
         parts: [{
-          text: `Summarize this news article in exactly 260 characters (no less than 240, no more than 280).\nInclude key details: who, what, where, when, why.\nMaintain complete sentences and proper grammar.\nNo hashtags or emojis. Be factual and concise.\n\nArticle: ${truncatedContent}`
+          text: `Summarize this news article in under 40 words (absolute maximum of 270 characters).
+Include key details: who, what, where, when, why.
+Maintain complete sentences and proper grammar.
+No hashtags or emojis. Be factual and concise.
+
+Article: ${truncatedContent}`
         }]
       }]
     };
@@ -252,14 +263,23 @@ async function generateStrictLengthSummary(content) {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    let summary = response.data.candidates[0].content.parts[0].text;
+    let summary = response.data.candidates[0].content.parts[0].text.trim();
 
+    // If it's too short, try again
     if (summary.length < MIN_SUMMARY_LENGTH) {
-      return await generateStrictLengthSummary(content);
+      return await generateStrictLengthSummary(content, retryCount + 1);
     }
 
+    // If it's too long, try again first. If we run out of retries, do a smart truncation.
     if (summary.length > MAX_SUMMARY_LENGTH) {
-      summary = summary.substring(0, MAX_SUMMARY_LENGTH - 3) + '...';
+      if (retryCount < 2) {
+        return await generateStrictLengthSummary(content, retryCount + 1);
+      }
+      
+      // Smart truncation: cut at the limit, then find the last space to avoid breaking words
+      let trimmed = summary.substring(0, MAX_SUMMARY_LENGTH - 3);
+      trimmed = trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(" ")));
+      summary = trimmed + '...';
     }
 
     return summary;
