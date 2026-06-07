@@ -1,4 +1,4 @@
-name: Post News to X
+name: Post News
 
 on:
   schedule:
@@ -16,20 +16,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '20.x'
+          python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
-        run: npm ci
+        run: pip install -r requirements.txt
 
       - name: Retry tweet script (up to 3 times)
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 10
           max_attempts: 3
-          command: node index.js
+          command: python main.py
         env:
           X_API_KEY: "${{ secrets.X_API_KEY }}"
           X_API_SECRET: "${{ secrets.X_API_SECRET }}"
@@ -42,22 +43,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f "posted_links.json" ]; then
-            TOTAL_LINKS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('posted_links.json', 'utf-8')).length)")
+            TOTAL_LINKS=$(python -c "import json; print(len(json.load(open('posted_links.json'))))")
             echo "**Total articles posted:** $TOTAL_LINKS" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔗 Recent Posted Articles" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
-            node -e "
-              const fs = require('fs');
-              if (fs.existsSync('posted_links.json')) {
-                const links = JSON.parse(fs.readFileSync('posted_links.json', 'utf-8'));
-                const recent = links.slice(-5).reverse();
-                recent.forEach((link, i) => {
-                  console.log(\`\${i + 1}. \${link}\`);
-                });
-              }
-            " >> $GITHUB_STEP_SUMMARY
+            python -c "import json, os; links = json.load(open('posted_links.json')) if os.path.exists('posted_links.json') else []; [print(f'{i}. {link}') for i, link in enumerate(reversed(links[-5:]), 1)]" >> $GITHUB_STEP_SUMMARY
           else
             echo "**No articles posted yet**" >> $GITHUB_STEP_SUMMARY
           fi
@@ -79,16 +71,7 @@ jobs:
             echo "Last updated: $(date)" >> README_temp.md
             echo "" >> README_temp.md
             # Show last 10 posted links
-            node -e "
-              const fs = require('fs');
-              if (fs.existsSync('posted_links.json')) {
-                const links = JSON.parse(fs.readFileSync('posted_links.json', 'utf-8'));
-                const recent = links.slice(-10).reverse();
-                recent.forEach((link, i) => {
-                  console.log(\`\${i + 1}. \${link}\`);
-                });
-              }
-            " >> README_temp.md
+            python -c "import json, os; links = json.load(open('posted_links.json')) if os.path.exists('posted_links.json') else []; [print(f'{i}. {link}') for i, link in enumerate(reversed(links[-10:]), 1)]" >> README_temp.md
           else
             echo "No links posted yet." >> README_temp.md
           fi
